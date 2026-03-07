@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-PR Analyzer - Analyze PR complexity and suggest review approach.
+"""PR Analyzer - Analyze PR complexity and suggest review approach.
 
 Usage:
     python pr-analyzer.py [--diff-file FILE] [--stats]
@@ -9,17 +8,18 @@ Usage:
     git diff main...HEAD | python pr-analyzer.py
 """
 
-import sys
-import re
 import argparse
+import re
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import Dict, List
 
 
 @dataclass
 class FileStats:
     """Statistics for a single file."""
+
     filename: str
     additions: int = 0
     deletions: int = 0
@@ -31,6 +31,7 @@ class FileStats:
 @dataclass
 class PRAnalysis:
     """Complete PR analysis results."""
+
     total_files: int
     total_additions: int
     total_deletions: int
@@ -45,48 +46,48 @@ class PRAnalysis:
 def detect_language(filename: str) -> str:
     """Detect programming language from filename."""
     extensions = {
-        '.py': 'Python',
-        '.js': 'JavaScript',
-        '.ts': 'TypeScript',
-        '.tsx': 'TypeScript/React',
-        '.jsx': 'JavaScript/React',
-        '.rs': 'Rust',
-        '.go': 'Go',
-        '.c': 'C',
-        '.h': 'C/C++',
-        '.cpp': 'C++',
-        '.hpp': 'C++',
-        '.cc': 'C++',
-        '.cxx': 'C++',
-        '.hh': 'C++',
-        '.hxx': 'C++',
-        '.java': 'Java',
-        '.rb': 'Ruby',
-        '.sql': 'SQL',
-        '.md': 'Markdown',
-        '.json': 'JSON',
-        '.yaml': 'YAML',
-        '.yml': 'YAML',
-        '.toml': 'TOML',
-        '.css': 'CSS',
-        '.scss': 'SCSS',
-        '.html': 'HTML',
+        ".py": "Python",
+        ".js": "JavaScript",
+        ".ts": "TypeScript",
+        ".tsx": "TypeScript/React",
+        ".jsx": "JavaScript/React",
+        ".rs": "Rust",
+        ".go": "Go",
+        ".c": "C",
+        ".h": "C/C++",
+        ".cpp": "C++",
+        ".hpp": "C++",
+        ".cc": "C++",
+        ".cxx": "C++",
+        ".hh": "C++",
+        ".hxx": "C++",
+        ".java": "Java",
+        ".rb": "Ruby",
+        ".sql": "SQL",
+        ".md": "Markdown",
+        ".json": "JSON",
+        ".yaml": "YAML",
+        ".yml": "YAML",
+        ".toml": "TOML",
+        ".css": "CSS",
+        ".scss": "SCSS",
+        ".html": "HTML",
     }
     for ext, lang in extensions.items():
         if filename.endswith(ext):
             return lang
-    return 'unknown'
+    return "unknown"
 
 
 def is_test_file(filename: str) -> bool:
     """Check if file is a test file."""
     test_patterns = [
-        r'test_.*\.py$',
-        r'.*_test\.py$',
-        r'.*\.test\.(js|ts|tsx)$',
-        r'.*\.spec\.(js|ts|tsx)$',
-        r'tests?/',
-        r'__tests__/',
+        r"test_.*\.py$",
+        r".*_test\.py$",
+        r".*\.test\.(js|ts|tsx)$",
+        r".*\.spec\.(js|ts|tsx)$",
+        r"tests?/",
+        r"__tests__/",
     ]
     return any(re.search(p, filename) for p in test_patterns)
 
@@ -94,15 +95,15 @@ def is_test_file(filename: str) -> bool:
 def is_config_file(filename: str) -> bool:
     """Check if file is a configuration file."""
     config_patterns = [
-        r'\.env',
-        r'config\.',
-        r'\.json$',
-        r'\.yaml$',
-        r'\.yml$',
-        r'\.toml$',
-        r'Cargo\.toml$',
-        r'package\.json$',
-        r'tsconfig\.json$',
+        r"\.env",
+        r"config\.",
+        r"\.json$",
+        r"\.yaml$",
+        r"\.yml$",
+        r"\.toml$",
+        r"Cargo\.toml$",
+        r"package\.json$",
+        r"tsconfig\.json$",
     ]
     return any(re.search(p, filename) for p in config_patterns)
 
@@ -112,13 +113,13 @@ def parse_diff(diff_content: str) -> List[FileStats]:
     files = []
     current_file = None
 
-    for line in diff_content.split('\n'):
+    for line in diff_content.split("\n"):
         # New file header
-        if line.startswith('diff --git'):
+        if line.startswith("diff --git"):
             if current_file:
                 files.append(current_file)
             # Extract filename from "diff --git a/path b/path"
-            match = re.search(r'b/(.+)$', line)
+            match = re.search(r"b/(.+)$", line)
             if match:
                 filename = match.group(1)
                 current_file = FileStats(
@@ -128,9 +129,9 @@ def parse_diff(diff_content: str) -> List[FileStats]:
                     is_config=is_config_file(filename),
                 )
         elif current_file:
-            if line.startswith('+') and not line.startswith('+++'):
+            if line.startswith("+") and not line.startswith("+++"):
                 current_file.additions += 1
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 current_file.deletions += 1
 
     if current_file:
@@ -157,15 +158,10 @@ def calculate_complexity(files: List[FileStats]) -> float:
     non_test_ratio = 1 - (test_lines / max(total_changes, 1))
 
     # Factor for language diversity
-    languages = set(f.language for f in files if f.language != 'unknown')
+    languages = set(f.language for f in files if f.language != "unknown")
     lang_factor = min(len(languages) / 5, 1.0)
 
-    complexity = (
-        size_factor * 0.4 +
-        file_factor * 0.2 +
-        non_test_ratio * 0.2 +
-        lang_factor * 0.2
-    )
+    complexity = size_factor * 0.4 + file_factor * 0.2 + non_test_ratio * 0.2 + lang_factor * 0.2
 
     return round(complexity, 2)
 
@@ -218,7 +214,7 @@ def identify_risk_factors(files: List[FileStats]) -> List[str]:
         risks.append("Low test ratio (<20%) - consider adding more tests")
 
     # Security-sensitive files
-    security_patterns = ['.env', 'auth', 'security', 'password', 'token', 'secret']
+    security_patterns = [".env", "auth", "security", "password", "token", "secret"]
     for f in files:
         if any(p in f.filename.lower() for p in security_patterns):
             risks.append(f"Security-sensitive file: {f.filename}")
@@ -226,7 +222,7 @@ def identify_risk_factors(files: List[FileStats]) -> List[str]:
 
     # Database changes
     for f in files:
-        if 'migration' in f.filename.lower() or f.language == 'SQL':
+        if "migration" in f.filename.lower() or f.language == "SQL":
             risks.append("Database changes detected - review carefully")
             break
 
@@ -256,13 +252,13 @@ def generate_suggestions(files: List[FileStats], complexity: float, risks: List[
 
     # Language-specific suggestions
     languages = set(f.language for f in files)
-    if 'TypeScript' in languages or 'TypeScript/React' in languages:
+    if "TypeScript" in languages or "TypeScript/React" in languages:
         suggestions.append("Check for proper type usage (avoid 'any')")
-    if 'Rust' in languages:
+    if "Rust" in languages:
         suggestions.append("Check for unwrap() usage and error handling")
-    if 'C' in languages or 'C++' in languages or 'C/C++' in languages:
+    if "C" in languages or "C++" in languages or "C/C++" in languages:
         suggestions.append("Check for memory safety, bounds checks, and UB risks")
-    if 'SQL' in languages:
+    if "SQL" in languages:
         suggestions.append("Review for SQL injection and query performance")
 
     if not suggestions:
@@ -302,7 +298,7 @@ def print_analysis(analysis: PRAnalysis, show_files: bool = False):
     print("PR ANALYSIS REPORT")
     print("=" * 60)
 
-    print(f"\n📊 SUMMARY")
+    print("\n📊 SUMMARY")
     print(f"   Files changed: {analysis.total_files}")
     print(f"   Additions: +{analysis.total_additions}")
     print(f"   Deletions: -{analysis.total_deletions}")
@@ -313,16 +309,16 @@ def print_analysis(analysis: PRAnalysis, show_files: bool = False):
     print(f"   Estimated review time: ~{analysis.estimated_review_time} minutes")
 
     if analysis.risk_factors:
-        print(f"\n⚠️  RISK FACTORS:")
+        print("\n⚠️  RISK FACTORS:")
         for risk in analysis.risk_factors:
             print(f"   • {risk}")
 
-    print(f"\n💡 SUGGESTIONS:")
+    print("\n💡 SUGGESTIONS:")
     for suggestion in analysis.suggestions:
         print(f"   • {suggestion}")
 
     if show_files:
-        print(f"\n📁 FILES:")
+        print("\n📁 FILES:")
         # Group by language
         by_lang: Dict[str, List[FileStats]] = defaultdict(list)
         for f in analysis.files:
@@ -338,14 +334,14 @@ def print_analysis(analysis: PRAnalysis, show_files: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Analyze PR complexity')
-    parser.add_argument('--diff-file', '-f', help='Path to diff file')
-    parser.add_argument('--stats', '-s', action='store_true', help='Show file details')
+    parser = argparse.ArgumentParser(description="Analyze PR complexity")
+    parser.add_argument("--diff-file", "-f", help="Path to diff file")
+    parser.add_argument("--stats", "-s", action="store_true", help="Show file details")
     args = parser.parse_args()
 
     # Read diff from file or stdin
     if args.diff_file:
-        with open(args.diff_file, 'r') as f:
+        with open(args.diff_file, "r") as f:
             diff_content = f.read()
     elif not sys.stdin.isatty():
         diff_content = sys.stdin.read()
@@ -362,5 +358,5 @@ def main():
     print_analysis(analysis, show_files=args.stats)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

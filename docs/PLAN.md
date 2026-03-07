@@ -8,14 +8,14 @@
 
 このフェーズでは、システムの足回りとなるCLI基盤、データベース、およびGitHubからのデータ収集・整形（ReviewItemの作成）までを実装します。
 
-### PR 1: プロジェクト基盤とCLIの初期構築
+### PR 1: プロジェクト基盤とCLIの初期構築 [DONE]
 - **目的**: 開発をスタートするためのディレクトリ構成、パッケージ管理、およびCLIのガワを作成する。
 - **タスク**:
-  - Pythonプロジェクトの初期化 (ライブラリ管理に [PyBun](https://github.com/VOID-TECHNOLOGY-INC/PyBun) を使用)
-  - Linter/Formatter (Ruff, Mypy等) および CI (GitHub Actions等) の設定
-  - `docs/SPEC.md` で定義されたディレクトリ構成の作成
-  - CLIフレームワーク (Typer) の導入と、各サブコマンド (`collect`, `normalize`, `analyze`, `extract-skills`, `dedup`, `generate`, `run`) のスタブ（空関数）実装
-  - `config.yaml` および `repos.yaml` の読み込み・バリデーション処理の実装 (Pydantic推奨)
+  - [x] Pythonプロジェクトの初期化 (ライブラリ管理に [PyBun](https://github.com/VOID-TECHNOLOGY-INC/PyBun) を使用)
+  - [x] Linter/Formatter (Ruff, Mypy等) および CI (GitHub Actions等) の設定
+  - [x] `docs/SPEC.md` で定義されたディレクトリ構成の作成
+  - [x] CLIフレームワーク (Typer) の導入と、各サブコマンド (`collect`, `normalize`, `analyze`, `extract-skills`, `dedup`, `generate`, `run`) のスタブ（空関数）実装
+  - [x] `config.yaml` および `repos.yaml` の読み込み・バリデーション処理の実装 (Pydantic推奨)
 
 ### PR 2: ストレージ層とデータモデルの構築
 - **目的**: 収集したデータや解析結果を永続化するためのデータベース基盤を構築する。
