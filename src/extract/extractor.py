@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from src.analyze.llm_client import LLMClient
+from src.analyze.llm_client import LLMClient, LLMError
 from src.analyze.prompts import PromptManager
 from src.models.db import ReviewItem, SkillCandidate
 
@@ -90,6 +90,6 @@ class SkillExtractor:
                 candidate = self.extract_from_item(item)
                 if candidate:
                     candidates.append(candidate)
-            except Exception as e:
+            except LLMError as e:
                 print(f"Failed to extract from item {item.id}: {e}")
         return candidates
