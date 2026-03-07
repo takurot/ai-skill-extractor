@@ -107,3 +107,22 @@ class ReviewItem(Base):
     fix_correlation: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     # accepted | unchanged | superseded | unknown
     merged_outcome: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class SkillCandidate(Base):
+    __tablename__ = "skill_candidates"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    source_review_item_ids: Mapped[List[str]] = mapped_column(JSON, default=list)
+    canonical_name: Mapped[str] = mapped_column(String)
+    category: Mapped[str] = mapped_column(String)
+    description_draft: Mapped[str] = mapped_column(String)
+    engineering_principle: Mapped[str] = mapped_column(String)
+    review_prompt_draft: Mapped[str] = mapped_column(String)
+    detection_hint_draft: Mapped[str] = mapped_column(String)
+    applicability_scope: Mapped[str] = mapped_column(String)
+    languages: Mapped[List[str]] = mapped_column(JSON, default=list)
+    frameworks: Mapped[List[str]] = mapped_column(JSON, default=list)
+    confidence: Mapped[float] = mapped_column(Float)
+    evidence_count: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String, default="proposed")
