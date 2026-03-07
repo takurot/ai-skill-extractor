@@ -1,18 +1,18 @@
 import os
+from typing import Any
 from unittest.mock import patch
-
 from typer.testing import CliRunner
-
 from src.cli.main import app
 
 runner = CliRunner()
-
 
 @patch.dict(os.environ, {"GITHUB_TOKEN": "fake_token"})
 @patch("src.cli.main.load_repos")
 @patch("src.cli.main.GithubClient")
 @patch("src.cli.main.Collector")
-def test_collect_stub(mock_collector, mock_client, mock_load_repos) -> None:
+def test_collect_stub(
+    mock_collector: Any, mock_client: Any, mock_load_repos: Any
+) -> None:
     # Setup mock repos config
     mock_repos_config = type(
         "obj", (object,), {"filters": None, "limits": None, "repos": ["test/repo"]}
