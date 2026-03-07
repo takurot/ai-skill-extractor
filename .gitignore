@@ -11,4 +11,5 @@ venv/
 
 # Project
 output/
+rke.db
 .DS_Store
