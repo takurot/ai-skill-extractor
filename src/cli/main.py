@@ -146,9 +146,38 @@ def analyze(config_file: str = "configs/config.yaml") -> None:
 
 
 @app.command("extract-skills")
-def extract_skills() -> None:
+def extract_skills(config_file: str = "configs/config.yaml") -> None:
     """Extract skill candidates from analyzed ReviewItems."""
-    typer.echo("Extracting skills...")
+    typer.echo(f"Extracting skills using {config_file}...")
+    try:
+        from src.analyze.llm_client import LLMClient
+        from src.extract.extractor import SkillExtractor
+        from src.models.db import SkillCandidate
+
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+
+        llm_client = LLMClient(model=config.models.classification_model)
+        extractor = SkillExtractor(llm_client, min_confidence=config.pipeline.min_skill_confidence)
+
+        with session_factory() as session:
+            # Fetch analyzed items
+            items = session.query(ReviewItem).filter(ReviewItem.category.is_not(None)).all()
+            typer.echo(f"Found {len(items)} analyzed ReviewItems to extract skills from.")
+
+            candidates = extractor.process_items(items)
+            for candidate in candidates:
+                data = {c.name: getattr(candidate, c.name) for c in candidate.__table__.columns}
+                upsert(session, SkillCandidate, data)
+
+            session.commit()
+            typer.echo(f"Extracted {len(candidates)} new skill candidates.")
+
+        typer.secho("Skill extraction completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Skill extraction failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command()
