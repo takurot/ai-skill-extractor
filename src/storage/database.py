@@ -1,0 +1,36 @@
+from typing import Any, Type
+
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.models.db import Base
+
+
+def get_engine(db_url: str):
+    return create_engine(db_url)
+
+
+def get_session_factory(engine):
+    return sessionmaker(bind=engine)
+
+
+def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
+    """Idempotent upsert logic using PostgreSQL ON CONFLICT."""
+    stmt = insert(model).values(data)
+
+    # Get primary key column names
+    pk_names = [c.name for c in model.__table__.primary_key.columns]
+
+    # Create update mapping for all other columns
+    update_dict = {
+        c.name: stmt.excluded[c.name] for c in model.__table__.columns if c.name not in pk_names
+    }
+
+    if update_dict:
+        stmt = stmt.on_conflict_do_update(index_elements=pk_names, set_=update_dict)
+    else:
+        stmt = stmt.on_conflict_do_nothing(index_elements=pk_names)
+
+    session.execute(stmt)
+    session.commit()

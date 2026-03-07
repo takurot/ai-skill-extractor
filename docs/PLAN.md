@@ -17,13 +17,13 @@
   - [x] CLIフレームワーク (Typer) の導入と、各サブコマンド (`collect`, `normalize`, `analyze`, `extract-skills`, `dedup`, `generate`, `run`) のスタブ（空関数）実装
   - [x] `config.yaml` および `repos.yaml` の読み込み・バリデーション処理の実装 (Pydantic推奨)
 
-### PR 2: ストレージ層とデータモデルの構築
+### PR 2: ストレージ層とデータモデルの構築 [DONE]
 - **目的**: 収集したデータや解析結果を永続化するためのデータベース基盤を構築する。
 - **タスク**:
-  - PostgreSQL接続基盤の構築 (SQLAlchemy または SQLModel等)
-  - マイグレーション環境 (Alembic) のセットアップ
-  - `RawPullRequest`, `RawReviewComment`, `ReviewItem` などのデータベーステーブル定義
-  - 冪等性（Idempotency）を担保するためのUpsertロジックの実装
+  - [x] PostgreSQL接続基盤の構築 (SQLAlchemy または SQLModel等)
+  - [x] マイグレーション環境 (Alembic) のセットアップ
+  - [x] `RawPullRequest`, `RawReviewComment`, `ReviewItem` などのデータベーステーブル定義
+  - [x] 冪等性（Idempotency）を担保するためのUpsertロジックの実装
 
 ### PR 3: Source Ingestor (データ収集モジュール)
 - **目的**: GitHub APIを利用してPRおよびレビューコメントを収集する。
