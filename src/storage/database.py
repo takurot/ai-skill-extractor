@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, Type
 
 from sqlalchemy import create_engine
@@ -28,6 +29,10 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
     }
 
     if update_dict:
+        # If the model has an 'updated_at' column, ensure it's explicitly set on update
+        if hasattr(model, "updated_at"):
+            update_dict["updated_at"] = datetime.now(timezone.utc)
+            
         stmt = stmt.on_conflict_do_update(index_elements=pk_names, set_=update_dict)
     else:
         stmt = stmt.on_conflict_do_nothing(index_elements=pk_names)

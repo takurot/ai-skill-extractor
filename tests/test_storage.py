@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -28,7 +28,7 @@ def test_raw_pr_model(session):
         "state": "merged",
         "changed_files_count": 5,
         "raw_data": {"test": "data"},
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     pr = RawPullRequest(**pr_data)
     session.add(pr)
