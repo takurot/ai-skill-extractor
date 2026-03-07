@@ -29,7 +29,9 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
 
     # Create update mapping for all other columns
     update_dict = {
-        str(c.key): getattr(stmt.excluded, str(c.key)) for c in mapper.columns if str(c.key) not in pk_names
+        str(c.key): getattr(stmt.excluded, str(c.key))
+        for c in mapper.columns
+        if str(c.key) not in pk_names
     }
 
     if update_dict:
