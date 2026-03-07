@@ -3,29 +3,33 @@ from typing import Any, Type
 
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.models.db import Base
 
 
-def get_engine(db_url: str):
+def get_engine(db_url: str) -> Engine:
     return create_engine(db_url)
 
 
-def get_session_factory(engine):
+def get_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine)
 
 
 def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
     """Idempotent upsert logic using PostgreSQL ON CONFLICT."""
+    from sqlalchemy import inspect
+    
     stmt = insert(model).values(data)
+    mapper = inspect(model)
 
     # Get primary key column names
-    pk_names = [c.name for c in model.__table__.primary_key.columns]
+    pk_names = [c.key for c in mapper.primary_key]
 
     # Create update mapping for all other columns
     update_dict = {
-        c.name: stmt.excluded[c.name] for c in model.__table__.columns if c.name not in pk_names
+        c.key: getattr(stmt.excluded, c.key) for c in mapper.columns if c.key not in pk_names
     }
 
     if update_dict:

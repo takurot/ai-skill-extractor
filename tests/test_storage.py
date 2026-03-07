@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+from typing import Generator
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.models.db import Base, RawPullRequest
 
@@ -11,7 +12,7 @@ from src.models.db import Base, RawPullRequest
 # Note: PostgreSQL specific 'ON CONFLICT' won't work in SQLite,
 # but we can verify the model and session usage.
 @pytest.fixture
-def session():
+def session() -> Generator[Session, None, None]:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
@@ -20,7 +21,7 @@ def session():
     session.close()
 
 
-def test_raw_pr_model(session):
+def test_raw_pr_model(session: Session) -> None:
     pr_data = {
         "id": "repo/1",
         "repo": "repo",
