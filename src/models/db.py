@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -96,6 +96,14 @@ class ReviewItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
+
+    # Semantic Analysis fields
+    category: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    actionable: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    evidence_based: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    generalizability: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    quality_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     fix_correlation: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     # accepted | unchanged | superseded | unknown
     merged_outcome: Mapped[Optional[str]] = mapped_column(String, nullable=True)
