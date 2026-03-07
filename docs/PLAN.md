@@ -25,14 +25,14 @@
   - [x] `RawPullRequest`, `RawReviewComment`, `ReviewItem` などのデータベーステーブル定義
   - [x] 冪等性（Idempotency）を担保するためのUpsertロジックの実装
 
-### PR 3: Source Ingestor (データ収集モジュール)
+### PR 3: Source Ingestor (データ収集モジュール) [DONE]
 - **目的**: GitHub APIを利用してPRおよびレビューコメントを収集する。
 - **タスク**:
-  - GitHub REST / GraphQL API を叩くクライアントの実装 (httpx, PyGithub等)
-  - API Rate Limitの考慮（Token bucket制御、Retry-After対応）
-  - `repos.yaml` のフィルタ条件（期間、PR状態、マージ済のみ等）に基づくPRとコメントの取得
-  - Incremental Syncのための `last_synced_at` の状態管理
-  - `rke collect` コマンドのロジック実装と結合
+  - [x] GitHub REST / GraphQL API を叩くクライアントの実装 (httpx, PyGithub等)
+  - [x] API Rate Limitの考慮（Token bucket制御、Retry-After対応）
+  - [x] `repos.yaml` のフィルタ条件（期間、PR状態、マージ済のみ等）に基づくPRとコメントの取得
+  - [x] Incremental Syncのための `last_synced_at` の状態管理
+  - [x] `rke collect` コマンドのロジック実装と結合
 
 ### PR 4: Normalizer (正規化モジュール)
 - **目的**: 生のGitHubデータから、解析の最小単位である `ReviewItem` を構築する。
