@@ -32,7 +32,7 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
         # If the model has an 'updated_at' column, ensure it's explicitly set on update
         if hasattr(model, "updated_at"):
             update_dict["updated_at"] = datetime.now(timezone.utc)
-            
+
         stmt = stmt.on_conflict_do_update(index_elements=pk_names, set_=update_dict)
     else:
         stmt = stmt.on_conflict_do_nothing(index_elements=pk_names)

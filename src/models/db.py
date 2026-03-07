@@ -19,9 +19,13 @@ class RawPullRequest(Base):
     merged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     changed_files_count: Mapped[int] = mapped_column(Integer)
     raw_data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -36,7 +40,9 @@ class RawReviewComment(Base):
     diff_hunk: Mapped[str] = mapped_column(String)
     body: Mapped[str] = mapped_column(String)
     raw_data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
 
 
 class ReviewItem(Base):
@@ -58,7 +64,9 @@ class ReviewItem(Base):
     comment_thread_context: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     review_state: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     author_redacted: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
     fix_correlation: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     # accepted | unchanged | superseded | unknown
     merged_outcome: Mapped[Optional[str]] = mapped_column(String, nullable=True)
