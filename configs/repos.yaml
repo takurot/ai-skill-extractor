@@ -1,0 +1,20 @@
+repos:
+  - google/jax
+  - microsoft/TypeScript
+
+filters:
+  merged_only: true
+  since: 2023-01-01
+  until: 2026-01-01
+  min_review_comments: 2
+  include_issue_comments: true
+  include_review_summaries: true
+  include_followup_commits: true
+  labels_include: []
+  labels_exclude: []
+  file_extensions: [.py, .ts, .tsx, .cpp, .h]
+
+limits:
+  max_prs_per_repo: 100
+  max_comments_per_pr: 100
+  max_files_per_pr: 50

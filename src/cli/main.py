@@ -1,16 +1,22 @@
 import os
+from typing import Any
 
 import typer
 
-from src.cli.config_loader import load_repos
+from src.cli.config_loader import load_config, load_repos
 from src.ingest.collector import Collector
 from src.ingest.github_client import GithubClient
+from src.models.db import RawIssueComment, RawPullRequest, RawReview, RawReviewComment, ReviewItem
+from src.normalize.normalizer import Normalizer
+from src.storage.database import get_engine, get_session_factory, upsert
 
 app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
 
 
 @app.command()
-def collect(repos_file: str = "repos.yaml", config_file: str = "config.yaml") -> None:
+def collect(
+    repos_file: str = "configs/repos.yaml", config_file: str = "configs/config.yaml"
+) -> None:
     """Collect raw data from GitHub."""
     typer.echo(f"Collecting data using {repos_file} and {config_file}...")
 
@@ -44,9 +50,76 @@ def collect(repos_file: str = "repos.yaml", config_file: str = "config.yaml") ->
 
 
 @app.command()
-def normalize() -> None:
+def normalize(config_file: str = "configs/config.yaml") -> None:
     """Normalize raw data into ReviewItems."""
-    typer.echo("Normalizing data...")
+    typer.echo(f"Normalizing data using {config_file}...")
+
+    try:
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+        normalizer = Normalizer(redact_identity=config.pipeline.redact_identity)
+
+        with session_factory() as session:
+            prs = session.query(RawPullRequest).all()
+            typer.echo(f"Found {len(prs)} Pull Requests to process.")
+
+            for pr in prs:
+                typer.echo(f"  Normalizing PR #{pr.pr_number} from {pr.repo}...")
+
+                # Process review comments
+                comments = (
+                    session.query(RawReviewComment)
+                    .filter(
+                        RawReviewComment.repo == pr.repo, RawReviewComment.pr_number == pr.pr_number
+                    )
+                    .all()
+                )
+                for comment in comments:
+                    item = normalizer.normalize_review_comment(pr.repo, pr, comment)
+                    if item:
+                        # Convert SQLAlchemy object to dict for upsert, but handle id properly
+                        data = {
+                            c.name: getattr(item, c.name) for c in item.__table__.columns
+                        }
+                        upsert(session, ReviewItem, data)
+
+                # Process issue comments
+                issue_comments = (
+                    session.query(RawIssueComment)
+                    .filter(
+                        RawIssueComment.repo == pr.repo, RawIssueComment.pr_number == pr.pr_number
+                    )
+                    .all()
+                )
+                for ic in issue_comments:
+                    item = normalizer.normalize_issue_comment(pr.repo, pr, ic)
+                    if item:
+                        data = {
+                            c.name: getattr(item, c.name) for c in item.__table__.columns
+                        }
+                        upsert(session, ReviewItem, data)
+
+                # Process review summaries
+                reviews = (
+                    session.query(RawReview)
+                    .filter(RawReview.repo == pr.repo, RawReview.pr_number == pr.pr_number)
+                    .all()
+                )
+                for review in reviews:
+                    item = normalizer.normalize_review_summary(pr.repo, pr, review)
+                    if item:
+                        data = {
+                            c.name: getattr(item, c.name) for c in item.__table__.columns
+                        }
+                        upsert(session, ReviewItem, data)
+
+            session.commit()
+        typer.secho("Normalization completed successfully.", fg=typer.colors.GREEN)
+
+    except Exception as e:
+        typer.secho(f"Normalization failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command()

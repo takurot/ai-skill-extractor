@@ -45,6 +45,35 @@ class RawReviewComment(Base):
     )
 
 
+class RawIssueComment(Base):
+    __tablename__ = "raw_issue_comments"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    repo: Mapped[str] = mapped_column(String, index=True)
+    pr_number: Mapped[int] = mapped_column(Integer)
+    comment_id: Mapped[str] = mapped_column(String)
+    body: Mapped[str] = mapped_column(String)
+    raw_data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class RawReview(Base):
+    __tablename__ = "raw_reviews"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    repo: Mapped[str] = mapped_column(String, index=True)
+    pr_number: Mapped[int] = mapped_column(Integer)
+    review_id: Mapped[str] = mapped_column(String)
+    state: Mapped[str] = mapped_column(String)
+    body: Mapped[str] = mapped_column(String)
+    raw_data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class ReviewItem(Base):
     __tablename__ = "review_items"
 
