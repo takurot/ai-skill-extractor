@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""PR Analyzer - Analyze PR complexity and suggest review approach.
+"""
+PR Analyzer - Analyze PR complexity and suggest review approach.
 
 Usage:
     python pr-analyzer.py [--diff-file FILE] [--stats]
