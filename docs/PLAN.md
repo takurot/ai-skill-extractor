@@ -34,14 +34,14 @@
   - [x] Incremental Syncのための `last_synced_at` の状態管理
   - [x] `rke collect` コマンドのロジック実装と結合
 
-### PR 4: Normalizer (正規化モジュール)
+### PR 4: Normalizer (正規化モジュール) [DONE]
 - **目的**: 生のGitHubデータから、解析の最小単位である `ReviewItem` を構築する。
 - **タスク**:
-  - コメントタイプの分類（`review_comment`, `review_summary`, `issue_comment`）
-  - Bot判定とノイズフィルタリング（自動レビュー、Lint結果等の除外）
-  - GitHubのDiff情報から、指摘行周辺の「変更前後のコード文脈（Diff Hunk）」を抽出・結合するロジック
-  - ファイル拡張子ベースのプログラミング言語推定ロジック
-  - `rke normalize` コマンドのロジック実装と結合
+  - [x] コメントタイプの分類（`review_comment`, `review_summary`, `issue_comment`）
+  - [x] Bot判定とノイズフィルタリング（自動レビュー、Lint結果等の除外）
+  - [x] GitHubのDiff情報から、指摘行周辺の「変更前後のコード文脈（Diff Hunk）」を抽出・結合するロジック
+  - [x] ファイル拡張子ベースのプログラミング言語推定ロジック
+  - [x] `rke normalize` コマンドのロジック実装と結合
 
 ---
 

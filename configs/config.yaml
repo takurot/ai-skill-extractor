@@ -1,0 +1,23 @@
+storage:
+  db_url: sqlite:///rke.db
+  artifact_dir: ./output
+
+models:
+  embedding_model: text-embedding-3-large
+  classification_model: gpt-4o
+  summarization_model: gpt-4o-mini
+
+pipeline:
+  enable_human_review: true
+  min_skill_confidence: 0.72
+  min_cross_repo_support: 2
+  require_evidence: true
+  enable_fix_correlation: true
+  dedup_threshold: 0.88
+  redact_identity: true
+
+generation:
+  skills_output: skills/SKILLS.yaml
+  docs_output_dir: docs
+  language_split: true
+  framework_split: true
