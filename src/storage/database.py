@@ -20,7 +20,7 @@ def get_session_factory(engine: Engine) -> sessionmaker[Session]:
 def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
     """Idempotent upsert logic using PostgreSQL ON CONFLICT."""
     from sqlalchemy import inspect
-    
+
     stmt = insert(model).values(data)
     mapper = inspect(model)
 
