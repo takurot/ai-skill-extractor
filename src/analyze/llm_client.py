@@ -8,6 +8,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 T = TypeVar("T", bound=BaseModel)
 
 
+class LLMError(Exception):
+    """Custom exception for LLM-related errors."""
+
+    pass
+
+
 class LLMClient:
     """Wrapper for LLM API calls with retry and structured output capabilities."""
 
@@ -36,7 +42,7 @@ class LLMClient:
         )
 
         if not response.choices[0].message.parsed:
-            raise RuntimeError("Failed to parse structured output from LLM.")
+            raise LLMError("Failed to parse structured output from LLM.")
 
         return response.choices[0].message.parsed
 
@@ -55,6 +61,6 @@ class LLMClient:
 
         content = response.choices[0].message.content
         if content is None:
-            raise RuntimeError("Received empty response from LLM.")
+            raise LLMError("Received empty response from LLM.")
 
         return content
