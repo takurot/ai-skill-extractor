@@ -65,12 +65,15 @@ class Normalizer:
                 return lang
         return "unknown"
 
-    def parse_diff_hunk(self, diff_hunk: str) -> Dict[str, Optional[str]]:
+    def parse_diff_hunk(self, diff_hunk: Optional[str]) -> Dict[str, Optional[str]]:
         """
         Parse GitHub diff hunk to extract context.
 
         Extracts original (before) and modified (after) versions of the code.
         """
+        if not diff_hunk:
+            return {"before": None, "after": None}
+
         lines = diff_hunk.splitlines()
         # Skip the @@ -L,C +L,C @@ header if present
         if lines and lines[0].startswith("@@"):
