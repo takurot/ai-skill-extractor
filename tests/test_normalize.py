@@ -1,7 +1,8 @@
 import unittest
 from datetime import datetime, timezone
-from src.normalize.normalizer import Normalizer
+
 from src.models.db import RawPullRequest, RawReviewComment
+from src.normalize.normalizer import Normalizer
 
 
 class TestNormalizer(unittest.TestCase):
@@ -67,7 +68,12 @@ class TestNormalizer(unittest.TestCase):
     def test_normalize_bot_comment(self) -> None:
         n = Normalizer()
         pr = RawPullRequest(
-            id="pr_1", repo="owner/repo", pr_number=1, state="merged", changed_files_count=1, raw_data={}
+            id="pr_1",
+            repo="owner/repo",
+            pr_number=1,
+            state="merged",
+            changed_files_count=1,
+            raw_data={},
         )
         comment = RawReviewComment(
             id="c_1",
@@ -83,6 +89,7 @@ class TestNormalizer(unittest.TestCase):
 
         item = n.normalize_review_comment("owner/repo", pr, comment)
         self.assertIsNone(item)
+
 
 if __name__ == "__main__":
     unittest.main()

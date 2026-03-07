@@ -22,14 +22,21 @@ def test_collect_stub(mock_collector: Any, mock_client: Any, mock_load_repos: An
 
     result = runner.invoke(app, ["collect"])
     assert result.exit_code == 0
-    assert "Collecting data using repos.yaml and config.yaml..." in result.stdout
+    assert "Collecting data using configs/repos.yaml and configs/config.yaml..." in result.stdout
     assert "Collection completed successfully." in result.stdout
 
 
-def test_normalize_stub() -> None:
+@patch("src.cli.main.load_config")
+@patch("src.cli.main.get_engine")
+@patch("src.cli.main.get_session_factory")
+@patch("src.cli.main.Normalizer")
+def test_normalize_stub(
+    mock_normalizer: Any, mock_get_session: Any, mock_get_engine: Any, mock_load_config: Any
+) -> None:
     result = runner.invoke(app, ["normalize"])
     assert result.exit_code == 0
-    assert "Normalizing data..." in result.stdout
+    assert "Normalizing data using configs/config.yaml..." in result.stdout
+    assert "Normalization completed successfully." in result.stdout
 
 
 def test_run_stub() -> None:

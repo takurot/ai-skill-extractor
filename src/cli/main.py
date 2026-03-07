@@ -1,5 +1,4 @@
 import os
-from typing import Any
 
 import typer
 
@@ -79,9 +78,7 @@ def normalize(config_file: str = "configs/config.yaml") -> None:
                     item = normalizer.normalize_review_comment(pr.repo, pr, comment)
                     if item:
                         # Convert SQLAlchemy object to dict for upsert, but handle id properly
-                        data = {
-                            c.name: getattr(item, c.name) for c in item.__table__.columns
-                        }
+                        data = {c.name: getattr(item, c.name) for c in item.__table__.columns}
                         upsert(session, ReviewItem, data)
 
                 # Process issue comments
@@ -95,9 +92,7 @@ def normalize(config_file: str = "configs/config.yaml") -> None:
                 for ic in issue_comments:
                     item = normalizer.normalize_issue_comment(pr.repo, pr, ic)
                     if item:
-                        data = {
-                            c.name: getattr(item, c.name) for c in item.__table__.columns
-                        }
+                        data = {c.name: getattr(item, c.name) for c in item.__table__.columns}
                         upsert(session, ReviewItem, data)
 
                 # Process review summaries
@@ -109,9 +104,7 @@ def normalize(config_file: str = "configs/config.yaml") -> None:
                 for review in reviews:
                     item = normalizer.normalize_review_summary(pr.repo, pr, review)
                     if item:
-                        data = {
-                            c.name: getattr(item, c.name) for c in item.__table__.columns
-                        }
+                        data = {c.name: getattr(item, c.name) for c in item.__table__.columns}
                         upsert(session, ReviewItem, data)
 
             session.commit()
