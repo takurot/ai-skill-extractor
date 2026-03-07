@@ -50,9 +50,7 @@ class TestLLMClient(unittest.TestCase):
 class TestPromptManager(unittest.TestCase):
     def test_get_prompt_success(self) -> None:
         prompt = PromptManager.get_prompt(
-            "extract_skill_candidate",
-            category="testing",
-            comment_text="add more edge cases"
+            "extract_skill_candidate", category="testing", comment_text="add more edge cases"
         )
         self.assertIn("Category: testing", prompt)
         self.assertIn("Comment: add more edge cases", prompt)

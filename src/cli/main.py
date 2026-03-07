@@ -116,9 +116,33 @@ def normalize(config_file: str = "configs/config.yaml") -> None:
 
 
 @app.command()
-def analyze() -> None:
+def analyze(config_file: str = "configs/config.yaml") -> None:
     """Analyze ReviewItems using LLM."""
-    typer.echo("Analyzing data...")
+    typer.echo(f"Analyzing data using {config_file}...")
+    try:
+        from src.analyze.analyzer import SemanticAnalyzer
+        from src.analyze.llm_client import LLMClient
+
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+
+        # Initialize LLM Client and Analyzer
+        llm_client = LLMClient(model=config.models.classification_model)
+        analyzer = SemanticAnalyzer(llm_client)
+
+        with session_factory() as session:
+            # Fetch unanalyzed items (where category is None)
+            items = session.query(ReviewItem).filter(ReviewItem.category.is_(None)).all()
+            typer.echo(f"Found {len(items)} unanalyzed ReviewItems.")
+
+            analyzer.process_items(items)
+            session.commit()
+
+        typer.secho("Analysis completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Analysis failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command("extract-skills")

@@ -56,14 +56,14 @@
   - [x] 構造化データ (JSON) を強制的に出力させるためのスキーマ定義 (PydanticによるStructured Outputs)
   - [x] プロンプトテンプレートを管理する仕組みの構築
 
-### PR 6: Semantic Analyzer (意味解析モジュール)
+### PR 6: Semantic Analyzer (意味解析モジュール) [DONE]
 - **目的**: 各 `ReviewItem` をLLMで評価し、カテゴリや品質情報を付与する。
 - **タスク**:
-  - カテゴリ推定（architecture, testing等）、品質評価（actionable, evidence_based等）を行うLLMプロンプトの作成
-  - 一般化可能性（general, language_specific等）の判定ロジック
-  - コメント後のコミット履歴を簡易的にチェックし、`fix_correlation` （修正反映相関）を付与するロジックの実装
-  - 評価結果をDBの `ReviewItem` レコードに更新・保存する
-  - `rke analyze` コマンドのロジック実装と結合
+  - [x] カテゴリ推定（architecture, testing等）、品質評価（actionable, evidence_based等）を行うLLMプロンプトの作成
+  - [x] 一般化可能性（general, language_specific等）の判定ロジック
+  - [x] コメント後のコミット履歴を簡易的にチェックし、`fix_correlation` （修正反映相関）を付与するロジックの実装
+  - [x] 評価結果をDBの `ReviewItem` レコードに更新・保存する
+  - [x] `rke analyze` コマンドのロジック実装と結合
 
 ---
 

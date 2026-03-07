@@ -37,7 +37,7 @@ class LLMClient:
         # Ignoring type on chat.completions.create because the OpenAI types can be tricky
         response = self.client.beta.chat.completions.parse(
             model=self.model,
-            messages=messages, # type: ignore
+            messages=messages,  # type: ignore
             response_format=response_format,
         )
 
@@ -56,7 +56,7 @@ class LLMClient:
 
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=messages, # type: ignore
+            messages=messages,  # type: ignore
         )
 
         content = response.choices[0].message.content
