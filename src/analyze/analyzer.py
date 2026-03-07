@@ -52,6 +52,15 @@ class SemanticAnalyzer:
             system_prompt=system_prompt,
         )
 
+    def calculate_fix_correlation(self, item: ReviewItem) -> bool:
+        """
+        Calculate if the feedback in the comment was reflected in subsequent commits.
+
+        Currently a stub returning True by default.
+        """
+        # TODO: Implement commit history parsing to verify if code changed after comment
+        return True
+
     def process_items(self, items: List[ReviewItem]) -> None:
         """Process a list of ReviewItems in place, updating their semantic fields."""
         for item in items:
@@ -62,6 +71,7 @@ class SemanticAnalyzer:
                 item.evidence_based = result.evidence_based
                 item.generalizability = result.generalizability
                 item.quality_score = result.quality_score
+                item.fix_correlation = self.calculate_fix_correlation(item)
             except Exception as e:
                 # Log or handle the error, but continue processing
                 print(f"Failed to analyze item {item.id}: {e}")
