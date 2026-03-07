@@ -41,6 +41,7 @@
   ```
 
 ### 3.2 静的解析 (Lint & Format & Type Check)
+- コーディングスタイルは **[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)** に準拠すること。
 - `Ruff` によるLinter・Formatterの実行、および `Mypy` による型チェックを行う。
   ```bash
   # Linterの実行と自動修正
