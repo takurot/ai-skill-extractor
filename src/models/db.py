@@ -126,3 +126,4 @@ class SkillCandidate(Base):
     confidence: Mapped[float] = mapped_column(Float)
     evidence_count: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String, default="proposed")
+    embedding: Mapped[Optional[List[float]]] = mapped_column(JSON, nullable=True)

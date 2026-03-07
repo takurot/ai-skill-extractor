@@ -47,6 +47,15 @@ class LLMClient:
         return response.choices[0].message.parsed
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def generate_embedding(self, text: str) -> list[float]:
+        """Generate an embedding vector for the provided text."""
+        response = self.client.embeddings.create(
+            input=text,
+            model="text-embedding-3-small",  # Hardcoded for now, can be configured
+        )
+        return response.data[0].embedding
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Generate raw text response."""
         messages = []
