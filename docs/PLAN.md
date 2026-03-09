@@ -85,14 +85,14 @@
   - [x] PostgreSQLへの `pgvector` 拡張の有効化 (※SQLiteでのJSONリスト保存にて代替)
   - [x] LLMのEmbedding APIを呼び出し、`SkillCandidate` のベクトル値を生成・DB保存するロジック
 
-### PR 9: Deduplicator & Scorer (重複排除・統合モジュール)
+### PR 9: Deduplicator & Scorer (重複排除・統合モジュール) [DONE]
 - **目的**: 複数リポジトリから抽出された類似のスキル候補を統合し、Accepted Skillを作成する。
 - **タスク**:
-  - Embeddingを用いた類似度計算と、候補のクラスタリングロジック
-  - 同一クラスタ内の候補をマージし、一つの「Canonical Skill」を生成するLLMプロンプト
-  - 証拠（evidence_count）やリポジトリの分散度（cross_repo_count）、品質に基づくスコアリングの計算
-  - スコアと閾値（`min_skill_confidence`, `min_cross_repo_support`）に基づく自動採択（Accepted/Rejected判定）
-  - `rke dedup` コマンドのロジック実装と結合
+  - [x] Embeddingを用いた類似度計算と、候補のクラスタリングロジック
+  - [x] 同一クラスタ内の候補をマージし、一つの「Canonical Skill」を生成するLLMプロンプト
+  - [x] 証拠（evidence_count）やリポジトリの分散度（cross_repo_count）、品質に基づくスコアリングの計算
+  - [x] スコアと閾値（`min_skill_confidence`, `min_cross_repo_support`）に基づく自動採択（Accepted/Rejected判定）
+  - [x] `rke dedup` コマンドのロジック実装と結合
 
 ---
 
@@ -100,27 +100,27 @@
 
 最終フェーズでは、抽出された知識をAIエージェントや人間が利用可能なファイル（YAML/Markdown）として出力します。
 
-### PR 10: SKILLS.yaml 生成モジュール
+### PR 10: SKILLS.yaml 生成モジュール [DONE]
 - **目的**: AIが読み込むための構造化定義ファイルを生成する。
 - **タスク**:
-  - DB上の Accepted Skill を取得し、仕様書で定義されたYAMLスキーマに合わせて整形する処理
-  - 言語やフレームワーク（`general`, `python`, `typescript` 等）に応じてファイルを分割出力する機能
-  - 出力ファイルへのメタデータ（生成日時、バージョン、収集サマリ）の付与
+  - [x] DB上の Accepted Skill を取得し、仕様書で定義されたYAMLスキーマに合わせて整形する処理
+  - [x] 言語やフレームワーク（`general`, `python`, `typescript` 等）に応じてファイルを分割出力する機能
+  - [x] 出力ファイルへのメタデータ（生成日時、バージョン、収集サマリ）の付与
 
-### PR 11: 人間向けMarkdownドキュメント生成モジュール
+### PR 11: 人間向けMarkdownドキュメント生成モジュール [DONE]
 - **目的**: 人間が読んで学習・活用できるレビュー観点集やレポートを生成する。
 - **タスク**:
-  - `review_dimensions.md` (カテゴリ別の観点一覧) の生成
-  - `anti_patterns.md` (よくあるミスとbad/good例) の生成
-  - `source_coverage_report.md` (処理件数や採択率などのメトリクスレポート) の生成
-  - `rke generate` コマンドのロジック実装と結合
+  - [x] `review_dimensions.md` (カテゴリ別の観点一覧) の生成
+  - [x] `anti_patterns.md` (よくあるミスとbad/good例) の生成
+  - [x] `source_coverage_report.md` (処理件数や採択率などのメトリクスレポート) の生成
+  - [x] `rke generate` コマンドのロジック実装と結合
 
-### PR 12: パイプライン統合と最終調整
+### PR 12: パイプライン統合と最終調整 [DONE]
 - **目的**: 各コマンドを連続して実行できる機能と、全体動作の安定性を確保する。
 - **タスク**:
-  - 全工程を一括実行する `rke run` コマンドの実装
-  - ログ出力（Structured Logging）と進行状況（プログレスバー等）のブラッシュアップ
-  - サンプルリポジトリを用いたE2Eテスト（Integration Test / Golden Test）の追加・検証
+  - [x] 全工程を一括実行する `rke run` コマンドの実装
+  - [x] ログ出力（Structured Logging）と進行状況（プログレスバー等）のブラッシュアップ
+  - [x] サンプルリポジトリを用いたE2Eテスト（Integration Test / Golden Test）の追加・検証
 
 ---
 

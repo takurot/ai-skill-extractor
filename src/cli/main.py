@@ -1,4 +1,8 @@
+import json
 import os
+from collections import Counter
+from collections.abc import Callable
+from time import perf_counter
 
 import typer
 
@@ -13,6 +17,10 @@ from src.storage.database import get_engine, get_session_factory, upsert
 load_project_env()
 
 app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
+
+
+def _emit_pipeline_event(stage: str, status: str, **payload: object) -> None:
+    typer.echo(json.dumps({"stage": stage, "status": status, **payload}, sort_keys=True))
 
 
 @app.command()
@@ -216,21 +224,144 @@ def embed(config_file: str = "configs/config.yaml") -> None:
 
 
 @app.command()
-def dedup() -> None:
+def dedup(config_file: str = "configs/config.yaml") -> None:
     """Deduplicate and integrate skill candidates."""
-    typer.echo("Deduplicating skills...")
+    typer.echo(f"Deduplicating skills using {config_file}...")
+    try:
+        from src.analyze.llm_client import LLMClient
+        from src.curate.deduplicator import SkillDeduplicator, write_deduplication_artifacts
+        from src.models.db import SkillCandidate
+
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+
+        llm_client = LLMClient(model=config.models.classification_model)
+        deduplicator = SkillDeduplicator(
+            llm_client,
+            dedup_threshold=config.pipeline.dedup_threshold,
+            min_skill_confidence=config.pipeline.min_skill_confidence,
+            min_cross_repo_support=config.pipeline.min_cross_repo_support,
+        )
+
+        with session_factory() as session:
+            candidates = (
+                session.query(SkillCandidate).filter(SkillCandidate.embedding.is_not(None)).all()
+            )
+            review_items = session.query(ReviewItem).all()
+            review_item_ids = {
+                review_item_id
+                for candidate in candidates
+                for review_item_id in (candidate.source_review_item_ids or [])
+            }
+            review_item_map = {
+                item.id: item for item in review_items if item.id and item.id in review_item_ids
+            }
+            typer.echo(f"Found {len(candidates)} proposed candidates to curate.")
+            outcome = deduplicator.process_candidates(candidates, review_item_map)
+            write_deduplication_artifacts(config.storage.artifact_dir, outcome)
+            session.commit()
+            typer.echo(
+                "Accepted "
+                f"{len(outcome.accepted_candidates)} skills and rejected "
+                f"{len(outcome.rejected_candidates)} candidates."
+            )
+
+        typer.secho("Deduplication completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Deduplication failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command()
-def generate() -> None:
+def generate(config_file: str = "configs/config.yaml") -> None:
     """Generate SKILLS.yaml and human-readable documentation."""
-    typer.echo("Generating output...")
+    typer.echo(f"Generating output using {config_file}...")
+    try:
+        from src.generate.generator import ArtifactGenerator
+        from src.models.db import SkillCandidate
+
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+
+        generator = ArtifactGenerator(
+            config.storage.artifact_dir,
+            language_split=config.generation.language_split,
+            framework_split=config.generation.framework_split,
+        )
+
+        with session_factory() as session:
+            accepted_candidates = (
+                session.query(SkillCandidate).filter(SkillCandidate.status == "accepted").all()
+            )
+            all_candidates = session.query(SkillCandidate).all()
+            review_items = session.query(ReviewItem).all()
+        rejection_reasons = Counter(
+            candidate.rejection_reason
+            for candidate in all_candidates
+            if candidate.rejection_reason and candidate.rejection_reason != "duplicate_cluster"
+        )
+        written_files = generator.generate(
+            accepted_candidates,
+            review_items,
+            skills_output_path=config.generation.skills_output,
+            docs_output_dir=config.generation.docs_output_dir,
+            all_candidates=all_candidates,
+            rejection_reasons=dict(rejection_reasons),
+        )
+
+        typer.echo(f"Generated {len(written_files)} artifact files.")
+        typer.secho("Generation completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Generation failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command()
-def run() -> None:
+def run(
+    repos_file: str = "configs/repos.yaml",
+    config_file: str = "configs/config.yaml",
+) -> None:
     """Run the entire pipeline."""
     typer.echo("Running pipeline...")
+    steps: list[tuple[str, Callable[[], None]]] = [
+        ("collect", lambda: collect(repos_file=repos_file, config_file=config_file)),
+        ("normalize", lambda: normalize(config_file=config_file)),
+        ("analyze", lambda: analyze(config_file=config_file)),
+        ("extract_skills", lambda: extract_skills(config_file=config_file)),
+        ("embed", lambda: embed(config_file=config_file)),
+        ("dedup", lambda: dedup(config_file=config_file)),
+        ("generate", lambda: generate(config_file=config_file)),
+    ]
+
+    try:
+        total_steps = len(steps)
+        for index, (step_name, step) in enumerate(steps, start=1):
+            started_at = perf_counter()
+            _emit_pipeline_event(step_name, "started", step=index, total=total_steps)
+            step()
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            _emit_pipeline_event(
+                step_name,
+                "completed",
+                step=index,
+                total=total_steps,
+                duration_ms=duration_ms,
+            )
+        typer.secho("Pipeline completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        duration_ms = int((perf_counter() - started_at) * 1000)
+        _emit_pipeline_event(
+            step_name,
+            "failed",
+            step=index,
+            total=total_steps,
+            duration_ms=duration_ms,
+            error=str(e),
+        )
+        typer.secho(f"Pipeline failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
