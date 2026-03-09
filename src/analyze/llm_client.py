@@ -5,7 +5,11 @@ from openai import OpenAI
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.runtime_env import load_project_env
+
 T = TypeVar("T", bound=BaseModel)
+
+load_project_env()
 
 
 class LLMError(Exception):

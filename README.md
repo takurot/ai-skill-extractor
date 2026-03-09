@@ -23,6 +23,12 @@ RKEは、これらの生のレビューコメントに対して、LLM（Large La
 * [実装計画 (docs/PLAN.md)](docs/PLAN.md)
 * [初期要件定義ドラフト (docs/review_skill_extractor_spec.md)](docs/review_skill_extractor_spec.md)
 
+## 環境変数
+
+リポジトリ直下の `.env` を起動時に自動で読み込みます。`GITHUB_TOKEN` と `OPENAI_API_KEY` は `.env` に置く運用を想定しており、既にシェルで同名の環境変数が設定されていても、このリポジトリの `.env` の値を優先します。
+
+`.env` は `.gitignore` 済みです。初回は `.env.example` をコピーして値を設定してください。
+
 ## 主な機能
 
 * GitHub APIを利用したPRおよびレビューデータの収集

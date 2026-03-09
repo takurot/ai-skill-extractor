@@ -7,7 +7,10 @@ from src.ingest.collector import Collector
 from src.ingest.github_client import GithubClient
 from src.models.db import RawIssueComment, RawPullRequest, RawReview, RawReviewComment, ReviewItem
 from src.normalize.normalizer import Normalizer
+from src.runtime_env import load_project_env
 from src.storage.database import get_engine, get_session_factory, upsert
+
+load_project_env()
 
 app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
 
