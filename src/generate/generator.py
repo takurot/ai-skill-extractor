@@ -77,9 +77,9 @@ class ArtifactGenerator:
         ]
 
         if self.language_split:
-            self._write_language_splits(skills_path, skills_document)
+            written_paths.extend(self._write_language_splits(skills_path, skills_document))
         if self.framework_split:
-            self._write_framework_splits(skills_path, skills_document)
+            written_paths.extend(self._write_framework_splits(skills_path, skills_document))
 
         return written_paths
 

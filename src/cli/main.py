@@ -246,8 +246,18 @@ def dedup(config_file: str = "configs/config.yaml") -> None:
 
         with session_factory() as session:
             candidates = (
-                session.query(SkillCandidate).filter(SkillCandidate.embedding.is_not(None)).all()
+                session.query(SkillCandidate)
+                .filter(
+                    SkillCandidate.status == "proposed",
+                    SkillCandidate.embedding.is_not(None),
+                )
+                .all()
             )
+            if not candidates:
+                typer.echo("No proposed embedded candidates found. Skipping deduplication.")
+                typer.secho("Deduplication completed successfully.", fg=typer.colors.GREEN)
+                return
+
             review_items = session.query(ReviewItem).all()
             review_item_ids = {
                 review_item_id
