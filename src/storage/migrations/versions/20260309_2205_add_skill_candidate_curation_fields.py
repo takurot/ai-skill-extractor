@@ -10,7 +10,6 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import inspect
 
-
 revision = "20260309_2205"
 down_revision = None
 branch_labels = None
