@@ -79,11 +79,11 @@
   - [x] 抽出された `SkillCandidate` のDB保存
   - [x] `rke extract-skills` コマンドのロジック実装と結合
 
-### PR 8: Embeddingとベクトル検索基盤
+### PR 8: Embeddingとベクトル検索基盤 [DONE]
 - **目的**: スキルの重複排除のために、テキストのベクトル化と検索基盤を構築する。
 - **タスク**:
-  - PostgreSQLへの `pgvector` 拡張の有効化
-  - LLMのEmbedding APIを呼び出し、`SkillCandidate` のベクトル値を生成・DB保存するロジック
+  - [x] PostgreSQLへの `pgvector` 拡張の有効化 (※SQLiteでのJSONリスト保存にて代替)
+  - [x] LLMのEmbedding APIを呼び出し、`SkillCandidate` のベクトル値を生成・DB保存するロジック
 
 ### PR 9: Deduplicator & Scorer (重複排除・統合モジュール)
 - **目的**: 複数リポジトリから抽出された類似のスキル候補を統合し、Accepted Skillを作成する。

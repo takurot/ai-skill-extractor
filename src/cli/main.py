@@ -7,7 +7,10 @@ from src.ingest.collector import Collector
 from src.ingest.github_client import GithubClient
 from src.models.db import RawIssueComment, RawPullRequest, RawReview, RawReviewComment, ReviewItem
 from src.normalize.normalizer import Normalizer
+from src.runtime_env import load_project_env
 from src.storage.database import get_engine, get_session_factory, upsert
+
+load_project_env()
 
 app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
 
@@ -177,6 +180,38 @@ def extract_skills(config_file: str = "configs/config.yaml") -> None:
         typer.secho("Skill extraction completed successfully.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Skill extraction failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("embed")
+def embed(config_file: str = "configs/config.yaml") -> None:
+    """Generate and save embeddings for SkillCandidates."""
+    typer.echo(f"Generating embeddings using {config_file}...")
+    try:
+        from src.analyze.llm_client import LLMClient
+        from src.extract.embedder import SkillEmbedder
+        from src.models.db import SkillCandidate
+
+        config = load_config(config_file)
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+
+        llm_client = LLMClient(embedding_model=config.models.embedding_model)
+        embedder = SkillEmbedder(llm_client)
+
+        with session_factory() as session:
+            # Fetch candidates without embeddings
+            candidates = (
+                session.query(SkillCandidate).filter(SkillCandidate.embedding.is_(None)).all()
+            )
+            typer.echo(f"Found {len(candidates)} candidates requiring embeddings.")
+
+            embedder.process_candidates(candidates)
+            session.commit()
+
+        typer.secho("Embedding generation completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Embedding generation failed: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 

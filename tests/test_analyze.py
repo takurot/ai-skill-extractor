@@ -46,6 +46,25 @@ class TestLLMClient(unittest.TestCase):
         self.assertTrue(result.actionable)
         mock_client_instance.beta.chat.completions.parse.assert_called_once()
 
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "fake_key"})
+    @patch("src.analyze.llm_client.OpenAI")
+    def test_generate_embedding_uses_configured_embedding_model(
+        self, mock_openai: MagicMock
+    ) -> None:
+        mock_client_instance = mock_openai.return_value
+        mock_response = MagicMock()
+        mock_response.data = [MagicMock(embedding=[0.1, 0.2, 0.3])]
+        mock_client_instance.embeddings.create.return_value = mock_response
+
+        client = LLMClient(embedding_model="text-embedding-3-large")
+        result = client.generate_embedding("embed me")
+
+        self.assertEqual(result, [0.1, 0.2, 0.3])
+        mock_client_instance.embeddings.create.assert_called_once_with(
+            input="embed me",
+            model="text-embedding-3-large",
+        )
+
 
 class TestPromptManager(unittest.TestCase):
     def test_get_prompt_success(self) -> None:
