@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
-from src.extract.embedder import SkillEmbedder
+from src.extract.embedder import EmbeddingGenerationError, SkillEmbedder
 from src.models.db import SkillCandidate
 
 
@@ -33,9 +33,11 @@ class TestSkillEmbedder(unittest.TestCase):
             description_draft="This is a test skill.",
         )
 
-        # Should not raise exception
-        embedder.process_candidates([candidate])
+        with self.assertRaises(EmbeddingGenerationError) as error:
+            embedder.process_candidates([candidate])
+
         self.assertIsNone(candidate.embedding)
+        self.assertEqual(error.exception.failures, [("sc_1", "API Error")])
 
 
 if __name__ == "__main__":

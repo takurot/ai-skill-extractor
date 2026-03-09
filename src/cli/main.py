@@ -196,7 +196,7 @@ def embed(config_file: str = "configs/config.yaml") -> None:
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
-        llm_client = LLMClient(model=config.models.embedding_model)
+        llm_client = LLMClient(embedding_model=config.models.embedding_model)
         embedder = SkillEmbedder(llm_client)
 
         with session_factory() as session:
