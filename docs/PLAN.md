@@ -143,6 +143,8 @@
   - [ ] `repos.yaml` のフィルタ（期間、merged_only、min_review_comments、labels、file_extensions）を実際の API 取得条件と保存条件へ反映する
   - [ ] 収集結果を `RawPullRequest`, `RawReview`, `RawReviewComment`, `RawIssueComment` に保存し、冪等な再実行を保証する
   - [ ] API pagination、secondary rate limit、Retry-After、Incremental Sync の状態管理を Collector に実装する
+  - [ ] ETag / conditional request を用いた差分取得とキャッシュ再利用を実装し、不要な API 再取得を抑制する
+  - [ ] repo 単位の parallelism 制御を導入し、複数リポジトリ収集時でも rate limit を超えにくい実行戦略を整備する
   - [ ] `rke collect` の実データ integration test を追加する
 
 ### PR 15: パイプライン実行の再実行性・運用性改善
@@ -150,7 +152,7 @@
 - **タスク**:
   - [ ] `storage.upsert` を利用 DB 方言に応じて動作する実装へ改め、デフォルト設定（SQLite）と本番想定（PostgreSQL）の両方で検証する
   - [ ] 各ステージの transaction 境界と commit 戦略を見直し、不要な per-row commit を排除する
-  - [ ] 途中失敗時の resume / rerun 戦略を明文化し、`collect` / `normalize` / `analyze` / `dedup` の再実行性テストを追加する
+  - [ ] 途中失敗時の resume / rerun 戦略を明文化し、`collect` / `normalize` / `analyze` / `extract-skills` / `embed` / `dedup` / `generate` の再実行性テストを追加する
   - [ ] 空データ・部分データ時の挙動を整理し、artifact 上書きや no-op 実行時の扱いを統一する
   - [ ] Structured Logging とメトリクス出力をステージ横断で統一し、処理件数・失敗件数・所要時間を残す
   - [ ] 長時間実行向けの smoke dataset と開発用 fixture を整備する
@@ -169,6 +171,7 @@
 - **タスク**:
   - [ ] `SemanticAnalyzer.calculate_fix_correlation` を stub から置き換え、レビュー後コミットや最終差分との相関判定を実装する
   - [ ] `SkillCandidate` / Canonical Skill のデータモデルを仕様に合わせて見直し、適用条件、bad/good 例、却下理由、監査情報など必要な項目を整理する
+  - [ ] データモデル変更に伴う Alembic migration と既存データ / artifact の backfill・移行手順を整備する
   - [ ] `ArtifactGenerator` の placeholder な `applies_when` / `does_not_apply_when` / bad/good example 生成を改め、抽出・統合結果に基づく出力へ置き換える
   - [ ] `SKILLS.yaml` / Markdown / analysis artifact が `docs/SPEC.md` のスキーマをどこまで満たしているか検証するスキーマテストを追加する
   - [ ] 仕様との差分が残る場合は `docs/SPEC.md` と `README.md` を更新し、現実装の制約を明記する
