@@ -186,7 +186,8 @@ def test_dedup_skips_when_no_proposed_candidates(
 
     assert result.exit_code == 0
     assert "No proposed embedded candidates found." in result.stdout
-    mock_llm_client.assert_called_once_with(model="gpt-4o")
+    mock_llm_client.assert_not_called()
+    mock_deduplicator_cls.assert_not_called()
     mock_deduplicator_cls.return_value.process_candidates.assert_not_called()
     mock_write_artifacts.assert_not_called()
     mock_session.commit.assert_not_called()

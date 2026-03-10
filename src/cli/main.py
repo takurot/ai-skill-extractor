@@ -228,21 +228,11 @@ def dedup(config_file: str = "configs/config.yaml") -> None:
     """Deduplicate and integrate skill candidates."""
     typer.echo(f"Deduplicating skills using {config_file}...")
     try:
-        from src.analyze.llm_client import LLMClient
-        from src.curate.deduplicator import SkillDeduplicator, write_deduplication_artifacts
         from src.models.db import SkillCandidate
 
         config = load_config(config_file)
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
-
-        llm_client = LLMClient(model=config.models.classification_model)
-        deduplicator = SkillDeduplicator(
-            llm_client,
-            dedup_threshold=config.pipeline.dedup_threshold,
-            min_skill_confidence=config.pipeline.min_skill_confidence,
-            min_cross_repo_support=config.pipeline.min_cross_repo_support,
-        )
 
         with session_factory() as session:
             candidates = (
@@ -258,6 +248,16 @@ def dedup(config_file: str = "configs/config.yaml") -> None:
                 typer.secho("Deduplication completed successfully.", fg=typer.colors.GREEN)
                 return
 
+            from src.analyze.llm_client import LLMClient
+            from src.curate.deduplicator import SkillDeduplicator, write_deduplication_artifacts
+
+            llm_client = LLMClient(model=config.models.classification_model)
+            deduplicator = SkillDeduplicator(
+                llm_client,
+                dedup_threshold=config.pipeline.dedup_threshold,
+                min_skill_confidence=config.pipeline.min_skill_confidence,
+                min_cross_repo_support=config.pipeline.min_cross_repo_support,
+            )
             review_items = session.query(ReviewItem).all()
             review_item_ids = {
                 review_item_id
