@@ -124,6 +124,47 @@
 
 ---
 
+## Phase 5: 実運用化・安定化 (Production Readiness)
+
+このフェーズでは、MVP 実装を「実データを対象に安全に繰り返し動かせるツール」へ仕上げる。特に、GitHub 収集の本実装、DB 初期化、設定の堅牢化、実環境 E2E の整備を行う。
+
+### PR 13: 起動前提条件の整備と設定堅牢化
+- **目的**: 初回セットアップや設定ミスでパイプラインが即座に壊れないようにする。
+- **タスク**:
+  - [ ] DB の初期化・マイグレーション適用手順を CLI から実行できるようにする（例: `rke init-db`, `rke migrate`）
+  - [ ] `rke run` / `normalize` / `generate` 実行前の preflight check（DB 接続、必要 env、出力ディレクトリ、マイグレーション状態）を追加する
+  - [ ] `repos.yaml` の日付項目が YAML の date 型 / string のどちらでも受け付けられるようにバリデーションを改善する
+  - [ ] 設定ファイルのサンプルと README のセットアップ手順を実運用フローに合わせて更新する
+
+### PR 14: Source Ingestor の本実装と永続化
+- **目的**: `collect` を stub から実運用可能な GitHub 収集処理へ置き換える。
+- **タスク**:
+  - [ ] GitHub REST / GraphQL API を用いた PR 一覧取得、レビュー取得、レビューコメント取得、Issue/PR コメント取得を実装する
+  - [ ] `repos.yaml` のフィルタ（期間、merged_only、min_review_comments、labels、file_extensions）を実際の API 取得条件と保存条件へ反映する
+  - [ ] 収集結果を `RawPullRequest`, `RawReview`, `RawReviewComment`, `RawIssueComment` に保存し、冪等な再実行を保証する
+  - [ ] API pagination、secondary rate limit、Retry-After、Incremental Sync の状態管理を Collector に実装する
+  - [ ] `rke collect` の実データ integration test を追加する
+
+### PR 15: パイプライン実行の再実行性・運用性改善
+- **目的**: 実データを繰り返し流しても壊れず、途中失敗から回復できるようにする。
+- **タスク**:
+  - [ ] 各ステージの transaction 境界と commit 戦略を見直し、不要な per-row commit を排除する
+  - [ ] 途中失敗時の resume / rerun 戦略を明文化し、`collect` / `normalize` / `analyze` / `dedup` の再実行性テストを追加する
+  - [ ] 空データ・部分データ時の挙動を整理し、artifact 上書きや no-op 実行時の扱いを統一する
+  - [ ] Structured Logging とメトリクス出力をステージ横断で統一し、処理件数・失敗件数・所要時間を残す
+  - [ ] 長時間実行向けの smoke dataset と開発用 fixture を整備する
+
+### PR 16: 実データ E2E 検証と受け入れ基準の確立
+- **目的**: GitHub / OpenAI を使った現実的な入力で、`rke run` が最後まで通ることを確認する。
+- **タスク**:
+  - [ ] `jax-ml/jax` などの公開リポジトリを対象にした実データ smoke config を追加する
+  - [ ] `collect -> normalize -> analyze -> extract-skills -> embed -> dedup -> generate` を一貫実行する E2E 手順を整備する
+  - [ ] 生成される `skills/SKILLS.yaml` と Markdown artifact に対する最小受け入れ条件（件数、必須項目、空出力防止）を定義する
+  - [ ] secrets がある環境でのみ実行する live validation 手順、または nightly/manual workflow を整備する
+  - [ ] 実データ実行時のコスト、所要時間、GitHub API 消費量を記録し、運用ガイドへ反映する
+
+---
+
 ## 将来スコープ (MVP対象外)
 以下のタスクは本MVPの完了後に検討・実施します。
 - **Human-in-the-loop CLI UI**: 抽出された候補に対してCLI上で人間が `accept`/`reject` を対話的に選択できる機能。
