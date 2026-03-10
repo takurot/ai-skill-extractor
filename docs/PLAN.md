@@ -148,6 +148,7 @@
 ### PR 15: パイプライン実行の再実行性・運用性改善
 - **目的**: 実データを繰り返し流しても壊れず、途中失敗から回復できるようにする。
 - **タスク**:
+  - [ ] `storage.upsert` を利用 DB 方言に応じて動作する実装へ改め、デフォルト設定（SQLite）と本番想定（PostgreSQL）の両方で検証する
   - [ ] 各ステージの transaction 境界と commit 戦略を見直し、不要な per-row commit を排除する
   - [ ] 途中失敗時の resume / rerun 戦略を明文化し、`collect` / `normalize` / `analyze` / `dedup` の再実行性テストを追加する
   - [ ] 空データ・部分データ時の挙動を整理し、artifact 上書きや no-op 実行時の扱いを統一する
@@ -162,6 +163,24 @@
   - [ ] 生成される `skills/SKILLS.yaml` と Markdown artifact に対する最小受け入れ条件（件数、必須項目、空出力防止）を定義する
   - [ ] secrets がある環境でのみ実行する live validation 手順、または nightly/manual workflow を整備する
   - [ ] 実データ実行時のコスト、所要時間、GitHub API 消費量を記録し、運用ガイドへ反映する
+
+### PR 17: 仕様準拠の品質シグナルと出力改善
+- **目的**: 現在 placeholder/stub のまま残っている品質判断と出力内容を、仕様に見合う水準まで引き上げる。
+- **タスク**:
+  - [ ] `SemanticAnalyzer.calculate_fix_correlation` を stub から置き換え、レビュー後コミットや最終差分との相関判定を実装する
+  - [ ] `SkillCandidate` / Canonical Skill のデータモデルを仕様に合わせて見直し、適用条件、bad/good 例、却下理由、監査情報など必要な項目を整理する
+  - [ ] `ArtifactGenerator` の placeholder な `applies_when` / `does_not_apply_when` / bad/good example 生成を改め、抽出・統合結果に基づく出力へ置き換える
+  - [ ] `SKILLS.yaml` / Markdown / analysis artifact が `docs/SPEC.md` のスキーマをどこまで満たしているか検証するスキーマテストを追加する
+  - [ ] 仕様との差分が残る場合は `docs/SPEC.md` と `README.md` を更新し、現実装の制約を明記する
+
+### PR 18: 例外処理と運用診断の強化
+- **目的**: 実行失敗時に原因が追いやすく、部分失敗を扱いやすい CLI にする。
+- **タスク**:
+  - [ ] `print` ベースの例外出力を structured logging / typed exception に置き換え、失敗した item/repo/PR を特定できるようにする
+  - [ ] LLM 呼び出し失敗、GitHub API 失敗、DB 失敗を終了コードとメッセージで区別できるようにする
+  - [ ] ステージ別の warning / partial success を CLI と artifact に残し、完全失敗と区別できるようにする
+  - [ ] 運用中の調査に必要な debug 出力、request id、retry 回数、対象件数をログへ残す
+  - [ ] エラー注入テストや失敗系 integration test を追加する
 
 ---
 
