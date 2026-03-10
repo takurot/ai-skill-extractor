@@ -124,6 +124,69 @@
 
 ---
 
+## Phase 5: 実運用化・安定化 (Production Readiness)
+
+このフェーズでは、MVP 実装を「実データを対象に安全に繰り返し動かせるツール」へ仕上げる。特に、GitHub 収集の本実装、DB 初期化、設定の堅牢化、実環境 E2E の整備を行う。
+
+### PR 13: 起動前提条件の整備と設定堅牢化
+- **目的**: 初回セットアップや設定ミスでパイプラインが即座に壊れないようにする。
+- **タスク**:
+  - [ ] DB の初期化・マイグレーション適用手順を CLI から実行できるようにする（例: `rke init-db`, `rke migrate`）
+  - [ ] `rke run` / `normalize` / `generate` 実行前の preflight check（DB 接続、必要 env、出力ディレクトリ、マイグレーション状態）を追加する
+  - [ ] `repos.yaml` の日付項目が YAML の date 型 / string のどちらでも受け付けられるようにバリデーションを改善する
+  - [ ] 設定ファイルのサンプルと README のセットアップ手順を実運用フローに合わせて更新する
+
+### PR 14: Source Ingestor の本実装と永続化
+- **目的**: `collect` を stub から実運用可能な GitHub 収集処理へ置き換える。
+- **タスク**:
+  - [ ] GitHub REST / GraphQL API を用いた PR 一覧取得、レビュー取得、レビューコメント取得、Issue/PR コメント取得を実装する
+  - [ ] `repos.yaml` のフィルタ（期間、merged_only、min_review_comments、labels、file_extensions）を実際の API 取得条件と保存条件へ反映する
+  - [ ] 収集結果を `RawPullRequest`, `RawReview`, `RawReviewComment`, `RawIssueComment` に保存し、冪等な再実行を保証する
+  - [ ] API pagination、secondary rate limit、Retry-After、Incremental Sync の状態管理を Collector に実装する
+  - [ ] ETag / conditional request を用いた差分取得とキャッシュ再利用を実装し、不要な API 再取得を抑制する
+  - [ ] repo 単位の parallelism 制御を導入し、複数リポジトリ収集時でも rate limit を超えにくい実行戦略を整備する
+  - [ ] `rke collect` の実データ integration test を追加する
+
+### PR 15: パイプライン実行の再実行性・運用性改善
+- **目的**: 実データを繰り返し流しても壊れず、途中失敗から回復できるようにする。
+- **タスク**:
+  - [ ] `storage.upsert` を利用 DB 方言に応じて動作する実装へ改め、デフォルト設定（SQLite）と本番想定（PostgreSQL）の両方で検証する
+  - [ ] 各ステージの transaction 境界と commit 戦略を見直し、不要な per-row commit を排除する
+  - [ ] 途中失敗時の resume / rerun 戦略を明文化し、`collect` / `normalize` / `analyze` / `extract-skills` / `embed` / `dedup` / `generate` の再実行性テストを追加する
+  - [ ] 空データ・部分データ時の挙動を整理し、artifact 上書きや no-op 実行時の扱いを統一する
+  - [ ] Structured Logging とメトリクス出力をステージ横断で統一し、処理件数・失敗件数・所要時間を残す
+  - [ ] 長時間実行向けの smoke dataset と開発用 fixture を整備する
+
+### PR 16: 実データ E2E 検証と受け入れ基準の確立
+- **目的**: GitHub / OpenAI を使った現実的な入力で、`rke run` が最後まで通ることを確認する。
+- **タスク**:
+  - [ ] `jax-ml/jax` などの公開リポジトリを対象にした実データ smoke config を追加する
+  - [ ] `collect -> normalize -> analyze -> extract-skills -> embed -> dedup -> generate` を一貫実行する E2E 手順を整備する
+  - [ ] 生成される `skills/SKILLS.yaml` と Markdown artifact に対する最小受け入れ条件（件数、必須項目、空出力防止）を定義する
+  - [ ] secrets がある環境でのみ実行する live validation 手順、または nightly/manual workflow を整備する
+  - [ ] 実データ実行時のコスト、所要時間、GitHub API 消費量を記録し、運用ガイドへ反映する
+
+### PR 17: 仕様準拠の品質シグナルと出力改善
+- **目的**: 現在 placeholder/stub のまま残っている品質判断と出力内容を、仕様に見合う水準まで引き上げる。
+- **タスク**:
+  - [ ] `SemanticAnalyzer.calculate_fix_correlation` を stub から置き換え、レビュー後コミットや最終差分との相関判定を実装する
+  - [ ] `SkillCandidate` / Canonical Skill のデータモデルを仕様に合わせて見直し、適用条件、bad/good 例、却下理由、監査情報など必要な項目を整理する
+  - [ ] データモデル変更に伴う Alembic migration と既存データ / artifact の backfill・移行手順を整備する
+  - [ ] `ArtifactGenerator` の placeholder な `applies_when` / `does_not_apply_when` / bad/good example 生成を改め、抽出・統合結果に基づく出力へ置き換える
+  - [ ] `SKILLS.yaml` / Markdown / analysis artifact が `docs/SPEC.md` のスキーマをどこまで満たしているか検証するスキーマテストを追加する
+  - [ ] 仕様との差分が残る場合は `docs/SPEC.md` と `README.md` を更新し、現実装の制約を明記する
+
+### PR 18: 例外処理と運用診断の強化
+- **目的**: 実行失敗時に原因が追いやすく、部分失敗を扱いやすい CLI にする。
+- **タスク**:
+  - [ ] `print` ベースの例外出力を structured logging / typed exception に置き換え、失敗した item/repo/PR を特定できるようにする
+  - [ ] LLM 呼び出し失敗、GitHub API 失敗、DB 失敗を終了コードとメッセージで区別できるようにする
+  - [ ] ステージ別の warning / partial success を CLI と artifact に残し、完全失敗と区別できるようにする
+  - [ ] 運用中の調査に必要な debug 出力、request id、retry 回数、対象件数をログへ残す
+  - [ ] エラー注入テストや失敗系 integration test を追加する
+
+---
+
 ## 将来スコープ (MVP対象外)
 以下のタスクは本MVPの完了後に検討・実施します。
 - **Human-in-the-loop CLI UI**: 抽出された候補に対してCLI上で人間が `accept`/`reject` を対話的に選択できる機能。
