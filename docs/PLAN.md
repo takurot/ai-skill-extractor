@@ -131,10 +131,10 @@
 ### PR 13: 起動前提条件の整備と設定堅牢化
 - **目的**: 初回セットアップや設定ミスでパイプラインが即座に壊れないようにする。
 - **タスク**:
-  - [ ] DB の初期化・マイグレーション適用手順を CLI から実行できるようにする（例: `rke init-db`, `rke migrate`）
-  - [ ] `rke run` / `normalize` / `generate` 実行前の preflight check（DB 接続、必要 env、出力ディレクトリ、マイグレーション状態）を追加する
-  - [ ] `repos.yaml` の日付項目が YAML の date 型 / string のどちらでも受け付けられるようにバリデーションを改善する
-  - [ ] 設定ファイルのサンプルと README のセットアップ手順を実運用フローに合わせて更新する
+  - [x] DB の初期化・マイグレーション適用手順を CLI から実行できるようにする（例: `rke init-db`, `rke migrate`）
+  - [x] `rke run` / `normalize` / `generate` 実行前の preflight check（DB 接続、必要 env、出力ディレクトリ、マイグレーション状態）を追加する
+  - [x] `repos.yaml` の日付項目が YAML の date 型 / string のどちらでも受け付けられるようにバリデーションを改善する
+  - [x] 設定ファイルのサンプルと README のセットアップ手順を実運用フローに合わせて更新する
 
 ### PR 14: Source Ingestor の本実装と永続化
 - **目的**: `collect` を stub から実運用可能な GitHub 収集処理へ置き換える。

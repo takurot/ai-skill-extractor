@@ -6,8 +6,9 @@ from typer.testing import CliRunner
 
 from src.cli.main import app
 from src.models.config import Config, GenerationConfig, StorageConfig
-from src.models.db import Base, ReviewItem, SkillCandidate
+from src.models.db import ReviewItem, SkillCandidate
 from src.storage.database import get_engine, get_session_factory
+from src.storage.migration_manager import apply_migrations
 
 runner = CliRunner()
 
@@ -16,8 +17,8 @@ def test_generate_command_creates_expected_artifacts(tmp_path: Path) -> None:
     db_path = tmp_path / "rke.db"
     artifact_dir = tmp_path / "output"
     config_path = tmp_path / "config.yaml"
+    apply_migrations(f"sqlite:///{db_path}")
     engine = get_engine(f"sqlite:///{db_path}")
-    Base.metadata.create_all(engine)
     session_factory = get_session_factory(engine)
 
     with session_factory() as session:

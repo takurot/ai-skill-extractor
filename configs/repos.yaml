@@ -4,6 +4,7 @@ repos:
 
 filters:
   merged_only: true
+  # YAML date literals and quoted strings are both accepted.
   since: 2023-01-01
   until: 2026-01-01
   min_review_comments: 2

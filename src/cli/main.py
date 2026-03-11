@@ -7,12 +7,14 @@ from time import perf_counter
 import typer
 
 from src.cli.config_loader import load_config, load_repos
+from src.cli.preflight import run_preflight
 from src.ingest.collector import Collector
 from src.ingest.github_client import GithubClient
 from src.models.db import RawIssueComment, RawPullRequest, RawReview, RawReviewComment, ReviewItem
 from src.normalize.normalizer import Normalizer
 from src.runtime_env import load_project_env
 from src.storage.database import get_engine, get_session_factory, upsert
+from src.storage.migration_manager import apply_migrations
 
 load_project_env()
 
@@ -21,6 +23,36 @@ app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
 
 def _emit_pipeline_event(stage: str, status: str, **payload: object) -> None:
     typer.echo(json.dumps({"stage": stage, "status": status, **payload}, sort_keys=True))
+
+
+@app.command("init-db")
+def init_db(config_file: str = "configs/config.yaml") -> None:
+    """Initialize the configured database and apply all migrations."""
+    typer.echo(f"Initializing database using {config_file}...")
+
+    try:
+        config = load_config(config_file)
+        revision = apply_migrations(config.storage.db_url)
+        typer.echo(f"Database initialized at revision {revision}.")
+        typer.secho("Database initialization completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Database initialization failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def migrate(config_file: str = "configs/config.yaml") -> None:
+    """Apply pending database migrations."""
+    typer.echo(f"Applying migrations using {config_file}...")
+
+    try:
+        config = load_config(config_file)
+        revision = apply_migrations(config.storage.db_url)
+        typer.echo(f"Database migrated to revision {revision}.")
+        typer.secho("Migration completed successfully.", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Migration failed: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -66,6 +98,7 @@ def normalize(config_file: str = "configs/config.yaml") -> None:
 
     try:
         config = load_config(config_file)
+        run_preflight(config)
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
         normalizer = Normalizer(redact_identity=config.pipeline.redact_identity)
@@ -135,6 +168,7 @@ def analyze(config_file: str = "configs/config.yaml") -> None:
         from src.analyze.llm_client import LLMClient
 
         config = load_config(config_file)
+        run_preflight(config, required_env_vars=("OPENAI_API_KEY",))
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
@@ -166,6 +200,7 @@ def extract_skills(config_file: str = "configs/config.yaml") -> None:
         from src.models.db import SkillCandidate
 
         config = load_config(config_file)
+        run_preflight(config, required_env_vars=("OPENAI_API_KEY",))
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
@@ -201,6 +236,7 @@ def embed(config_file: str = "configs/config.yaml") -> None:
         from src.models.db import SkillCandidate
 
         config = load_config(config_file)
+        run_preflight(config, required_env_vars=("OPENAI_API_KEY",))
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
@@ -231,6 +267,7 @@ def dedup(config_file: str = "configs/config.yaml") -> None:
         from src.models.db import SkillCandidate
 
         config = load_config(config_file)
+        run_preflight(config, required_env_vars=("OPENAI_API_KEY",))
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
@@ -292,6 +329,7 @@ def generate(config_file: str = "configs/config.yaml") -> None:
         from src.models.db import SkillCandidate
 
         config = load_config(config_file)
+        run_preflight(config)
         engine = get_engine(config.storage.db_url)
         session_factory = get_session_factory(engine)
 
@@ -344,9 +382,14 @@ def run(
         ("dedup", lambda: dedup(config_file=config_file)),
         ("generate", lambda: generate(config_file=config_file)),
     ]
+    total_steps = len(steps)
+    step_name = "preflight"
+    index = 0
+    started_at = perf_counter()
 
     try:
-        total_steps = len(steps)
+        config = load_config(config_file)
+        run_preflight(config, required_env_vars=("GITHUB_TOKEN", "OPENAI_API_KEY"))
         for index, (step_name, step) in enumerate(steps, start=1):
             started_at = perf_counter()
             _emit_pipeline_event(step_name, "started", step=index, total=total_steps)
@@ -362,14 +405,15 @@ def run(
         typer.secho("Pipeline completed successfully.", fg=typer.colors.GREEN)
     except Exception as e:
         duration_ms = int((perf_counter() - started_at) * 1000)
-        _emit_pipeline_event(
-            step_name,
-            "failed",
-            step=index,
-            total=total_steps,
-            duration_ms=duration_ms,
-            error=str(e),
-        )
+        if index > 0:
+            _emit_pipeline_event(
+                step_name,
+                "failed",
+                step=index,
+                total=total_steps,
+                duration_ms=duration_ms,
+                error=str(e),
+            )
         typer.secho(f"Pipeline failed: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 

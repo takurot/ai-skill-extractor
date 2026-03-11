@@ -28,19 +28,26 @@ def test_collect_stub(mock_collector: Any, mock_client: Any, mock_load_repos: An
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.cli.main.Normalizer")
 def test_normalize_stub(
-    mock_normalizer: Any, mock_get_session: Any, mock_get_engine: Any, mock_load_config: Any
+    mock_normalizer: Any,
+    mock_get_session: Any,
+    mock_get_engine: Any,
+    mock_run_preflight: Any,
+    mock_load_config: Any,
 ) -> None:
     result = runner.invoke(app, ["normalize"])
     assert result.exit_code == 0
     assert "Normalizing data using configs/config.yaml..." in result.stdout
     assert "Normalization completed successfully." in result.stdout
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.generate.generator.ArtifactGenerator")
@@ -48,6 +55,7 @@ def test_generate_uses_accepted_skills_and_writes_output(
     mock_generator_cls: Any,
     mock_get_session_factory: Any,
     mock_get_engine: Any,
+    mock_run_preflight: Any,
     mock_load_config: Any,
 ) -> None:
     mock_load_config.return_value = MagicMock(
@@ -93,9 +101,11 @@ def test_generate_uses_accepted_skills_and_writes_output(
         rejection_reasons={"low_confidence": 1},
     )
     assert "Generation completed successfully." in result.stdout
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.curate.deduplicator.write_deduplication_artifacts")
@@ -107,6 +117,7 @@ def test_dedup_processes_candidates(
     mock_write_artifacts: Any,
     mock_get_session_factory: Any,
     mock_get_engine: Any,
+    mock_run_preflight: Any,
     mock_load_config: Any,
 ) -> None:
     mock_load_config.return_value = MagicMock(
@@ -151,9 +162,11 @@ def test_dedup_processes_candidates(
     mock_write_artifacts.assert_called_once()
     mock_deduplicator_cls.return_value.process_candidates.assert_called_once()
     mock_session.commit.assert_called_once()
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.curate.deduplicator.write_deduplication_artifacts")
@@ -165,6 +178,7 @@ def test_dedup_skips_when_no_proposed_candidates(
     mock_write_artifacts: Any,
     mock_get_session_factory: Any,
     mock_get_engine: Any,
+    mock_run_preflight: Any,
     mock_load_config: Any,
 ) -> None:
     mock_load_config.return_value = MagicMock(
@@ -191,6 +205,7 @@ def test_dedup_skips_when_no_proposed_candidates(
     mock_deduplicator_cls.return_value.process_candidates.assert_not_called()
     mock_write_artifacts.assert_not_called()
     mock_session.commit.assert_not_called()
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.generate")
@@ -200,7 +215,11 @@ def test_dedup_skips_when_no_proposed_candidates(
 @patch("src.cli.main.analyze")
 @patch("src.cli.main.normalize")
 @patch("src.cli.main.collect")
+@patch("src.cli.main.run_preflight")
+@patch("src.cli.main.load_config")
 def test_run_executes_pipeline_in_order(
+    mock_load_config: Any,
+    mock_run_preflight: Any,
     mock_collect: Any,
     mock_normalize: Any,
     mock_analyze: Any,
@@ -209,6 +228,7 @@ def test_run_executes_pipeline_in_order(
     mock_dedup: Any,
     mock_generate: Any,
 ) -> None:
+    mock_load_config.return_value = MagicMock()
     call_order: list[str] = []
     for name, mock_fn in [
         ("collect", mock_collect),
@@ -233,9 +253,14 @@ def test_run_executes_pipeline_in_order(
         "dedup",
         "generate",
     ]
+    mock_run_preflight.assert_called_once_with(
+        mock_load_config.return_value,
+        required_env_vars=("GITHUB_TOKEN", "OPENAI_API_KEY"),
+    )
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.extract.embedder.SkillEmbedder")
@@ -245,10 +270,11 @@ def test_embed_uses_configured_embedding_model(
     mock_embedder_cls: Any,
     mock_get_session_factory: Any,
     mock_get_engine: Any,
+    mock_run_preflight: Any,
     mock_load_config: Any,
 ) -> None:
     mock_load_config.return_value = MagicMock(
-        models=MagicMock(embedding_model="text-embedding-3-large")
+        models=MagicMock(embedding_model="text-embedding-3-large"),
     )
     mock_session = MagicMock()
     mock_session.query.return_value.filter.return_value.all.return_value = []
@@ -259,9 +285,11 @@ def test_embed_uses_configured_embedding_model(
     assert result.exit_code == 0
     mock_llm_client.assert_called_once_with(embedding_model="text-embedding-3-large")
     mock_embedder_cls.return_value.process_candidates.assert_called_once_with([])
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
 @patch("src.cli.main.get_engine")
 @patch("src.cli.main.get_session_factory")
 @patch("src.extract.embedder.SkillEmbedder")
@@ -271,10 +299,11 @@ def test_embed_exits_nonzero_when_embedding_generation_fails(
     mock_embedder_cls: Any,
     mock_get_session_factory: Any,
     mock_get_engine: Any,
+    mock_run_preflight: Any,
     mock_load_config: Any,
 ) -> None:
     mock_load_config.return_value = MagicMock(
-        models=MagicMock(embedding_model="text-embedding-3-large")
+        models=MagicMock(embedding_model="text-embedding-3-large"),
     )
     mock_session = MagicMock()
     mock_session.query.return_value.filter.return_value.all.return_value = [MagicMock(id="sc_1")]
@@ -289,3 +318,4 @@ def test_embed_exits_nonzero_when_embedding_generation_fails(
     assert "Embedding generation failed:" in result.stdout
     mock_llm_client.assert_called_once_with(embedding_model="text-embedding-3-large")
     mock_session.commit.assert_not_called()
+    mock_run_preflight.assert_called_once()
