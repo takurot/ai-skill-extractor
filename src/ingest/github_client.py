@@ -56,7 +56,7 @@ class GithubClient:
         if not params:
             return str(url)
 
-        query_params: list[tuple[str, str]] = []
+        query_params: list[tuple[str, str | int | float | bool | None]] = []
         for key, value in sorted(params.items(), key=lambda item: item[0]):
             if isinstance(value, list):
                 for item in value:

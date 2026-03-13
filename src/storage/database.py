@@ -25,6 +25,7 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
     mapper = inspect(model)
     dialect_name = session.bind.dialect.name if session.bind is not None else ""
 
+    stmt: Any
     if dialect_name == "postgresql":
         stmt = postgresql_insert(model).values(data)
     elif dialect_name == "sqlite":

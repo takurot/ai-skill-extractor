@@ -63,7 +63,7 @@ class Collector:
         list_etag = self._get_cached_etag(session, list_cache_key)
 
         first_page = True
-        processed_prs = 0
+        collected_prs = 0
         stop_iteration = False
 
         for page in self.client.paginate_json(list_endpoint, params=list_params, etag=list_etag):
@@ -93,10 +93,9 @@ class Collector:
                     stop_iteration = True
                     break
 
-                if processed_prs >= self.limits.max_prs_per_repo:
+                if collected_prs >= self.limits.max_prs_per_repo:
                     stop_iteration = True
                     break
-                processed_prs += 1
 
                 pr_number = int(summary["number"])
                 payload = self._fetch_pull_request_payload(session, repo, pr_number)
@@ -104,6 +103,7 @@ class Collector:
                     continue
 
                 self._persist_pull_request_payload(session, repo, payload)
+                collected_prs += 1
                 stats.pull_requests += 1
                 stats.review_comments += len(payload.review_comments)
                 stats.reviews += len(payload.reviews)
@@ -145,14 +145,12 @@ class Collector:
         if not self._matches_label_filters(detail):
             return None
 
-        files = self._fetch_collection_resource(
+        files, matches_file_filters = self._fetch_files(
             session,
-            f"/repos/{repo}/pulls/{pr_number}/files",
-            params={"per_page": 100},
-            fallback_loader=lambda: self._load_saved_files(session, repo, pr_number),
-            limit=self.limits.max_files_per_pr,
+            repo,
+            pr_number,
         )
-        if not self._matches_file_filters(files):
+        if not matches_file_filters:
             return None
 
         review_comments = self._fetch_collection_resource(
@@ -260,6 +258,54 @@ class Collector:
                 return items[:limit]
 
         return items
+
+    def _fetch_files(
+        self,
+        session: Session,
+        repo: str,
+        pr_number: int,
+        *,
+        use_cache: bool = True,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        endpoint = f"/repos/{repo}/pulls/{pr_number}/files"
+        params = {"per_page": 100}
+        cache_key = self.client.build_cache_key(endpoint, params)
+        etag = self._get_cached_etag(session, cache_key) if use_cache else None
+        extensions = tuple(self.filters.file_extensions)
+
+        files: list[dict[str, Any]] = []
+        matches_filter = not extensions
+        first_page = True
+
+        for page in self.client.paginate_json(endpoint, params=params, etag=etag):
+            if first_page and page.not_modified:
+                cached_files = self._load_saved_files(session, repo, pr_number)
+                if cached_files is not None and (
+                    matches_filter or len(cached_files) < self.limits.max_files_per_pr
+                ):
+                    return cached_files[: self.limits.max_files_per_pr], self._matches_file_filters(
+                        cached_files
+                    )
+                # If the cached payload is truncated, refetch without ETag so the
+                # file extension filter still reflects the full PR file list.
+                return self._fetch_files(session, repo, pr_number, use_cache=False)
+
+            if first_page and page.etag:
+                self._store_etag(session, cache_key, page.etag)
+            first_page = False
+
+            page_files = self._coerce_list(page.data)
+            if not matches_filter and self._matches_file_filters(page_files):
+                matches_filter = True
+
+            remaining = self.limits.max_files_per_pr - len(files)
+            if remaining > 0:
+                files.extend(page_files[:remaining])
+
+            if matches_filter and len(files) >= self.limits.max_files_per_pr:
+                return files[: self.limits.max_files_per_pr], True
+
+        return files[: self.limits.max_files_per_pr], matches_filter
 
     def _persist_pull_request_payload(
         self,

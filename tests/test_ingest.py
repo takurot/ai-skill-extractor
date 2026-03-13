@@ -388,3 +388,176 @@ def test_collector_uses_conditional_requests_for_unchanged_repo(session: Session
     assert second_stats.pull_requests == 0
     assert request_counts["/repos/example/project/pulls"] == 2
     assert request_counts["/repos/example/project/pulls/10"] == first_detail_calls
+
+
+def test_collector_max_prs_per_repo_counts_persisted_matches(session: Session) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+
+        if path == "/repos/example/project/pulls":
+            return httpx.Response(
+                200,
+                json=[
+                    {"number": 10, "updated_at": "2026-03-12T10:00:00Z"},
+                    {"number": 11, "updated_at": "2026-03-11T10:00:00Z"},
+                ],
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 1010,
+                    "number": 10,
+                    "state": "closed",
+                    "merged_at": "2026-03-12T09:00:00Z",
+                    "updated_at": "2026-03-12T10:00:00Z",
+                    "labels": [{"name": "docs"}],
+                    "changed_files": 1,
+                },
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/11":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 1011,
+                    "number": 11,
+                    "state": "closed",
+                    "merged_at": "2026-03-11T09:00:00Z",
+                    "updated_at": "2026-03-11T10:00:00Z",
+                    "labels": [{"name": "bug"}],
+                    "changed_files": 1,
+                },
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/11/files":
+            return httpx.Response(
+                200,
+                json=[{"filename": "src/main.py"}],
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/11/comments":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": 211,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -1 +1 @@\n-old\n+new",
+                        "body": "Please add a test.",
+                        "created_at": "2026-03-11T10:05:00Z",
+                    },
+                    {
+                        "id": 212,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -5 +5 @@\n-old\n+new",
+                        "body": "Handle the error path too.",
+                        "created_at": "2026-03-11T10:06:00Z",
+                    },
+                ],
+                request=request,
+            )
+
+        raise AssertionError(f"Unexpected request path: {path}")
+
+    collector = Collector(
+        client=GithubClient(token="fake_token", transport=httpx.MockTransport(handler)),
+        filters=RepoFilter(
+            since=date(2026, 3, 1),
+            merged_only=True,
+            min_review_comments=2,
+            include_issue_comments=False,
+            include_review_summaries=False,
+            labels_include=["bug"],
+            file_extensions=[".py"],
+        ),
+        limits=RepoLimits(max_prs_per_repo=1, max_comments_per_pr=10, max_files_per_pr=10),
+    )
+
+    stats = collector.collect_repository(session, "example/project")
+    session.commit()
+
+    assert stats.pull_requests == 1
+    saved_pr = session.query(RawPullRequest).one()
+    assert saved_pr.pr_number == 11
+
+
+def test_collector_file_extension_filter_scans_beyond_persist_limit(session: Session) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+
+        if path == "/repos/example/project/pulls":
+            return httpx.Response(
+                200,
+                json=[{"number": 10, "updated_at": "2026-03-12T10:00:00Z"}],
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 1010,
+                    "number": 10,
+                    "state": "closed",
+                    "merged_at": "2026-03-12T09:00:00Z",
+                    "updated_at": "2026-03-12T10:00:00Z",
+                    "labels": [{"name": "bug"}],
+                    "changed_files": 2,
+                },
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10/files":
+            return httpx.Response(
+                200,
+                json=[
+                    {"filename": "README.md"},
+                    {"filename": "src/main.py"},
+                ],
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10/comments":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": 201,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -1 +1 @@\n-old\n+new",
+                        "body": "Please add a test.",
+                        "created_at": "2026-03-12T10:05:00Z",
+                    },
+                    {
+                        "id": 202,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -5 +5 @@\n-old\n+new",
+                        "body": "Handle the error path too.",
+                        "created_at": "2026-03-12T10:06:00Z",
+                    },
+                ],
+                request=request,
+            )
+
+        raise AssertionError(f"Unexpected request path: {path}")
+
+    collector = Collector(
+        client=GithubClient(token="fake_token", transport=httpx.MockTransport(handler)),
+        filters=RepoFilter(
+            since=date(2026, 3, 1),
+            merged_only=True,
+            min_review_comments=2,
+            include_issue_comments=False,
+            include_review_summaries=False,
+            labels_include=["bug"],
+            file_extensions=[".py"],
+        ),
+        limits=RepoLimits(max_prs_per_repo=10, max_comments_per_pr=10, max_files_per_pr=1),
+    )
+
+    stats = collector.collect_repository(session, "example/project")
+    session.commit()
+
+    assert stats.pull_requests == 1
+    saved_pr = session.query(RawPullRequest).one()
+    assert saved_pr.changed_files_count == 2
+    assert saved_pr.raw_data["files"] == [{"filename": "README.md"}]
