@@ -74,6 +74,37 @@ class RawReview(Base):
     )
 
 
+class RepoSyncState(Base):
+    __tablename__ = "repo_sync_states"
+
+    repo: Mapped[str] = mapped_column(String, primary_key=True)
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    latest_pr_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class RequestCacheEntry(Base):
+    __tablename__ = "request_cache_entries"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    etag: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 class ReviewItem(Base):
     __tablename__ = "review_items"
 

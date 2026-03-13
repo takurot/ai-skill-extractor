@@ -4,6 +4,7 @@ repos:
 
 filters:
   merged_only: true
+  # YAML date literals and quoted strings are both accepted.
   since: 2023-01-01
   until: 2026-01-01
   min_review_comments: 2
@@ -18,3 +19,4 @@ limits:
   max_prs_per_repo: 100
   max_comments_per_pr: 100
   max_files_per_pr: 50
+  max_parallel_repos: 1

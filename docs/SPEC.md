@@ -200,6 +200,7 @@ limits:
   max_prs_per_repo: 5000
   max_comments_per_pr: 500
   max_files_per_pr: 200
+  max_parallel_repos: 1
 ```
 
 #### `config.yaml`
