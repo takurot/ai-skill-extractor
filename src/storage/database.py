@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 from typing import Any, Type
 
 from sqlalchemy import create_engine
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -18,11 +19,19 @@ def get_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
-    """Idempotent upsert logic using PostgreSQL ON CONFLICT."""
+    """Idempotent upsert logic that supports SQLite and PostgreSQL."""
     from sqlalchemy import inspect
 
-    stmt = insert(model).values(data)
     mapper = inspect(model)
+    dialect_name = session.bind.dialect.name if session.bind is not None else ""
+
+    if dialect_name == "postgresql":
+        stmt = postgresql_insert(model).values(data)
+    elif dialect_name == "sqlite":
+        stmt = sqlite_insert(model).values(data)
+    else:
+        session.merge(model(**data))
+        return
 
     # Get primary key column names
     pk_names = [str(c.key) for c in mapper.primary_key]
@@ -31,7 +40,7 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
     update_dict = {
         str(c.key): getattr(stmt.excluded, str(c.key))
         for c in mapper.columns
-        if str(c.key) not in pk_names
+        if str(c.key) not in pk_names and str(c.key) != "created_at"
     }
 
     if update_dict:
@@ -44,4 +53,3 @@ def upsert(session: Session, model: Type[Base], data: dict[str, Any]) -> None:
         stmt = stmt.on_conflict_do_nothing(index_elements=pk_names)
 
     session.execute(stmt)
-    session.commit()

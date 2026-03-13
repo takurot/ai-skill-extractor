@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.models.db import Base, RawPullRequest
+from src.storage.database import upsert
 
 
 # Use in-memory SQLite for testing upsert logic structure
@@ -38,3 +39,34 @@ def test_raw_pr_model(session: Session) -> None:
     saved_pr = session.query(RawPullRequest).filter_by(id="repo/1").first()
     assert saved_pr is not None
     assert saved_pr.state == "merged"
+
+
+def test_upsert_updates_existing_row_in_sqlite(session: Session) -> None:
+    initial_data = {
+        "id": "repo/1",
+        "repo": "repo",
+        "pr_number": 1,
+        "state": "open",
+        "merged_at": None,
+        "changed_files_count": 3,
+        "raw_data": {"version": 1},
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }
+    upsert(session, RawPullRequest, initial_data)
+    session.commit()
+
+    updated_data = {
+        **initial_data,
+        "state": "closed",
+        "changed_files_count": 5,
+        "raw_data": {"version": 2},
+    }
+    upsert(session, RawPullRequest, updated_data)
+    session.commit()
+
+    saved_pr = session.query(RawPullRequest).filter_by(id="repo/1").one()
+    assert saved_pr.state == "closed"
+    assert saved_pr.changed_files_count == 5
+    assert saved_pr.raw_data == {"version": 2}
+    assert session.query(RawPullRequest).count() == 1

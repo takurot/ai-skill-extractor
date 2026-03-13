@@ -19,3 +19,4 @@ limits:
   max_prs_per_repo: 100
   max_comments_per_pr: 100
   max_files_per_pr: 50
+  max_parallel_repos: 1

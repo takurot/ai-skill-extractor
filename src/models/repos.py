@@ -20,6 +20,7 @@ class RepoLimits(BaseModel):
     max_prs_per_repo: int = 5000
     max_comments_per_pr: int = 500
     max_files_per_pr: int = 200
+    max_parallel_repos: int = 1
 
 
 class ReposConfig(BaseModel):

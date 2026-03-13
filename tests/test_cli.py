@@ -1,30 +1,265 @@
-import os
+import threading
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
+import yaml
 from typer.testing import CliRunner
 
 from src.cli.main import app
 from src.extract.embedder import EmbeddingGenerationError
+from src.ingest.collector import CollectionStats
+from src.ingest.github_client import GithubClient
+from src.models.db import RawPullRequest
+from src.models.repos import RepoFilter, RepoLimits
+from src.storage.database import get_engine, get_session_factory
 
 runner = CliRunner()
 
 
-@patch.dict(os.environ, {"GITHUB_TOKEN": "fake_token"})
-@patch("src.cli.main.load_repos")
-@patch("src.cli.main.GithubClient")
-@patch("src.cli.main.Collector")
-def test_collect_stub(mock_collector: Any, mock_client: Any, mock_load_repos: Any) -> None:
-    # Setup mock repos config
-    mock_repos_config = type(
-        "obj", (object,), {"filters": None, "limits": None, "repos": ["test/repo"]}
+def test_collect_persists_raw_data(tmp_path: Path, monkeypatch: Any) -> None:
+    db_path = tmp_path / "rke.db"
+    artifact_dir = tmp_path / "output"
+    config_path = tmp_path / "config.yaml"
+    repos_path = tmp_path / "repos.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "storage": {
+                    "db_url": f"sqlite:///{db_path}",
+                    "artifact_dir": str(artifact_dir),
+                },
+                "models": {
+                    "embedding_model": "text-embedding-3-large",
+                    "classification_model": "gpt-4o",
+                    "summarization_model": "gpt-4o-mini",
+                },
+                "pipeline": {
+                    "enable_human_review": True,
+                    "min_skill_confidence": 0.72,
+                    "min_cross_repo_support": 2,
+                    "require_evidence": True,
+                    "enable_fix_correlation": True,
+                    "dedup_threshold": 0.88,
+                    "redact_identity": True,
+                },
+                "generation": {
+                    "skills_output": "skills/SKILLS.yaml",
+                    "docs_output_dir": "docs",
+                    "language_split": True,
+                    "framework_split": True,
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
     )
-    mock_load_repos.return_value = mock_repos_config
+    repos_path.write_text(
+        yaml.safe_dump(
+            {
+                "repos": ["example/project"],
+                "filters": {
+                    "merged_only": True,
+                    "since": "2026-03-01",
+                    "min_review_comments": 2,
+                    "include_issue_comments": True,
+                    "include_review_summaries": True,
+                    "include_followup_commits": True,
+                    "labels_include": ["bug"],
+                    "labels_exclude": [],
+                    "file_extensions": [".py"],
+                },
+                "limits": {
+                    "max_prs_per_repo": 10,
+                    "max_comments_per_pr": 10,
+                    "max_files_per_pr": 10,
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GITHUB_TOKEN", "fake_token")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+
+        if path == "/repos/example/project/pulls":
+            return httpx.Response(
+                200,
+                json=[{"number": 10, "updated_at": "2026-03-11T10:00:00Z"}],
+                headers={"ETag": '"prs-v1"'},
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 1010,
+                    "number": 10,
+                    "state": "closed",
+                    "merged_at": "2026-03-11T09:30:00Z",
+                    "updated_at": "2026-03-11T10:00:00Z",
+                    "labels": [{"name": "bug"}],
+                    "changed_files": 1,
+                },
+                headers={"ETag": '"pr-10"'},
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10/files":
+            return httpx.Response(
+                200,
+                json=[{"filename": "src/main.py"}],
+                headers={"ETag": '"pr-10-files"'},
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10/comments":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": 201,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -1 +1 @@\n-old\n+new",
+                        "body": "Please add a test.",
+                        "created_at": "2026-03-11T10:05:00Z",
+                        "user": {"login": "reviewer1"},
+                    },
+                    {
+                        "id": 202,
+                        "path": "src/main.py",
+                        "diff_hunk": "@@ -5 +5 @@\n-old\n+new",
+                        "body": "Handle the error path too.",
+                        "created_at": "2026-03-11T10:06:00Z",
+                        "user": {"login": "reviewer2"},
+                    },
+                ],
+                headers={"ETag": '"pr-10-comments"'},
+                request=request,
+            )
+        if path == "/repos/example/project/pulls/10/reviews":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": 301,
+                        "state": "COMMENTED",
+                        "body": "Looks mostly good.",
+                        "submitted_at": "2026-03-11T10:07:00Z",
+                        "user": {"login": "reviewer1"},
+                    }
+                ],
+                headers={"ETag": '"pr-10-reviews"'},
+                request=request,
+            )
+        if path == "/repos/example/project/issues/10/comments":
+            return httpx.Response(
+                200,
+                json=[],
+                headers={"ETag": '"pr-10-issue-comments"'},
+                request=request,
+            )
+        raise AssertionError(f"Unexpected request path: {path}")
+
+    class TestGithubClient(GithubClient):
+        def __init__(self, token: str, base_url: str = "https://api.github.com"):
+            super().__init__(
+                token=token,
+                base_url=base_url,
+                transport=httpx.MockTransport(handler),
+                sleep_fn=lambda _: None,
+            )
+
+    monkeypatch.setattr("src.cli.main.GithubClient", TestGithubClient)
+
+    init_result = runner.invoke(app, ["init-db", "--config-file", str(config_path)])
+    assert init_result.exit_code == 0
+
+    result = runner.invoke(
+        app,
+        [
+            "collect",
+            "--repos-file",
+            str(repos_path),
+            "--config-file",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Processing repository: example/project" in result.stdout
+    assert "Collection completed successfully." in result.stdout
+
+    engine = get_engine(f"sqlite:///{db_path}")
+    session_factory = get_session_factory(engine)
+    with session_factory() as session:
+        saved_pr = session.query(RawPullRequest).one()
+        assert saved_pr.repo == "example/project"
+        assert saved_pr.pr_number == 10
+
+
+@patch("src.cli.main.load_repos")
+@patch("src.cli.main.load_config")
+@patch("src.cli.main.run_preflight")
+@patch("src.cli.main.get_engine")
+@patch("src.cli.main.get_session_factory")
+def test_collect_uses_configured_repo_parallelism(
+    mock_get_session_factory: Any,
+    mock_get_engine: Any,
+    mock_run_preflight: Any,
+    mock_load_config: Any,
+    mock_load_repos: Any,
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake_token")
+    mock_load_config.return_value = MagicMock(
+        storage=MagicMock(db_url="sqlite://", artifact_dir="output"),
+    )
+    mock_load_repos.return_value = MagicMock(
+        filters=RepoFilter(),
+        limits=RepoLimits(max_parallel_repos=2),
+        repos=["example/one", "example/two"],
+    )
+
+    active_workers = 0
+    peak_workers = 0
+    worker_lock = threading.Lock()
+    barrier = threading.Barrier(2)
+
+    def fake_collect_single_repository(
+        repo: str,
+        *,
+        token: str,
+        session_factory: Any,
+        filters: RepoFilter,
+        limits: RepoLimits,
+    ) -> tuple[str, CollectionStats]:
+        nonlocal active_workers, peak_workers
+        assert token == "fake_token"
+        assert limits.max_parallel_repos == 2
+
+        with worker_lock:
+            active_workers += 1
+            peak_workers = max(peak_workers, active_workers)
+
+        try:
+            barrier.wait(timeout=1)
+            return repo, CollectionStats()
+        finally:
+            with worker_lock:
+                active_workers -= 1
+
+    monkeypatch.setattr("src.cli.main._collect_single_repository", fake_collect_single_repository)
 
     result = runner.invoke(app, ["collect"])
+
     assert result.exit_code == 0
-    assert "Collecting data using configs/repos.yaml and configs/config.yaml..." in result.stdout
-    assert "Collection completed successfully." in result.stdout
+    assert "Using repo parallelism: 2" in result.stdout
+    assert "Completed repository: example/one" in result.stdout
+    assert "Completed repository: example/two" in result.stdout
+    assert peak_workers == 2
+    mock_run_preflight.assert_called_once()
 
 
 @patch("src.cli.main.load_config")

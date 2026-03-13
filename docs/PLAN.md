@@ -136,16 +136,16 @@
   - [x] `repos.yaml` の日付項目が YAML の date 型 / string のどちらでも受け付けられるようにバリデーションを改善する
   - [x] 設定ファイルのサンプルと README のセットアップ手順を実運用フローに合わせて更新する
 
-### PR 14: Source Ingestor の本実装と永続化
+### PR 14: Source Ingestor の本実装と永続化 [DONE]
 - **目的**: `collect` を stub から実運用可能な GitHub 収集処理へ置き換える。
 - **タスク**:
-  - [ ] GitHub REST / GraphQL API を用いた PR 一覧取得、レビュー取得、レビューコメント取得、Issue/PR コメント取得を実装する
-  - [ ] `repos.yaml` のフィルタ（期間、merged_only、min_review_comments、labels、file_extensions）を実際の API 取得条件と保存条件へ反映する
-  - [ ] 収集結果を `RawPullRequest`, `RawReview`, `RawReviewComment`, `RawIssueComment` に保存し、冪等な再実行を保証する
-  - [ ] API pagination、secondary rate limit、Retry-After、Incremental Sync の状態管理を Collector に実装する
-  - [ ] ETag / conditional request を用いた差分取得とキャッシュ再利用を実装し、不要な API 再取得を抑制する
-  - [ ] repo 単位の parallelism 制御を導入し、複数リポジトリ収集時でも rate limit を超えにくい実行戦略を整備する
-  - [ ] `rke collect` の実データ integration test を追加する
+  - [x] GitHub REST / GraphQL API を用いた PR 一覧取得、レビュー取得、レビューコメント取得、Issue/PR コメント取得を実装する
+  - [x] `repos.yaml` のフィルタ（期間、merged_only、min_review_comments、labels、file_extensions）を実際の API 取得条件と保存条件へ反映する
+  - [x] 収集結果を `RawPullRequest`, `RawReview`, `RawReviewComment`, `RawIssueComment` に保存し、冪等な再実行を保証する
+  - [x] API pagination、secondary rate limit、Retry-After、Incremental Sync の状態管理を Collector に実装する
+  - [x] ETag / conditional request を用いた差分取得とキャッシュ再利用を実装し、不要な API 再取得を抑制する
+  - [x] repo 単位の parallelism 制御を導入し、複数リポジトリ収集時でも rate limit を超えにくい実行戦略を整備する
+  - [x] `rke collect` の実データ integration test を追加する
 
 ### PR 15: パイプライン実行の再実行性・運用性改善
 - **目的**: 実データを繰り返し流しても壊れず、途中失敗から回復できるようにする。

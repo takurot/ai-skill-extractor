@@ -37,7 +37,7 @@ RKEは、これらの生のレビューコメントに対して、LLM（Large La
 4. 初回実行前に `rke init-db` を実行して DB を初期化する。既存 DB に追従する場合は `rke migrate` を使う。
 5. その後、`rke run` または各サブコマンドを実行する。
 
-`normalize` / `analyze` / `extract-skills` / `embed` / `dedup` / `generate` / `run` は、実行前に DB 接続、マイグレーション状態、必要な環境変数、artifact 出力先を preflight で検証します。マイグレーション未適用時は `rke init-db` または `rke migrate` の実行を促します。
+`collect` / `normalize` / `analyze` / `extract-skills` / `embed` / `dedup` / `generate` / `run` は、実行前に DB 接続、マイグレーション状態、必要な環境変数、artifact 出力先を preflight で検証します。マイグレーション未適用時は `rke init-db` または `rke migrate` の実行を促します。
 
 ## 主な機能
 

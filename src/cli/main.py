@@ -2,15 +2,18 @@ import json
 import os
 from collections import Counter
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import perf_counter
+from typing import Any
 
 import typer
 
 from src.cli.config_loader import load_config, load_repos
 from src.cli.preflight import run_preflight
-from src.ingest.collector import Collector
+from src.ingest.collector import CollectionStats, Collector
 from src.ingest.github_client import GithubClient
 from src.models.db import RawIssueComment, RawPullRequest, RawReview, RawReviewComment, ReviewItem
+from src.models.repos import RepoFilter, RepoLimits
 from src.normalize.normalizer import Normalizer
 from src.runtime_env import load_project_env
 from src.storage.database import get_engine, get_session_factory, upsert
@@ -23,6 +26,31 @@ app = typer.Typer(help="Review Knowledge Extractor (RKE) CLI")
 
 def _emit_pipeline_event(stage: str, status: str, **payload: object) -> None:
     typer.echo(json.dumps({"stage": stage, "status": status, **payload}, sort_keys=True))
+
+
+def _resolve_repo_parallelism(limits: RepoLimits, repo_count: int) -> int:
+    if repo_count <= 1:
+        return 1
+    return max(1, min(limits.max_parallel_repos, repo_count))
+
+
+def _collect_single_repository(
+    repo: str,
+    *,
+    token: str,
+    session_factory: Callable[[], Any],
+    filters: RepoFilter,
+    limits: RepoLimits,
+) -> tuple[str, CollectionStats]:
+    client = GithubClient(token=token)
+    try:
+        collector = Collector(client=client, filters=filters, limits=limits)
+        with session_factory() as session:
+            stats = collector.collect_repository(session, repo)
+            session.commit()
+        return repo, stats
+    finally:
+        client.close()
 
 
 @app.command("init-db")
@@ -68,22 +96,61 @@ def collect(
         raise typer.Exit(code=1)
 
     try:
+        config = load_config(config_file)
+        run_preflight(config, required_env_vars=("GITHUB_TOKEN",))
         repos_config = load_repos(repos_file)
-        # config = load_config(config_file) # Will be used for DB connection later
-
-        client = GithubClient(token=token)
-        collector = Collector(
-            client=client, filters=repos_config.filters, limits=repos_config.limits
+        engine = get_engine(config.storage.db_url)
+        session_factory = get_session_factory(engine)
+        repo_parallelism = _resolve_repo_parallelism(
+            repos_config.limits,
+            len(repos_config.repos),
         )
+        typer.echo(f"Using repo parallelism: {repo_parallelism}")
 
-        for repo in repos_config.repos:
-            typer.echo(f"Processing repository: {repo}")
-            # Placeholder for actual collection loop using `collector`
-            # prs = collector.fetch_prs(repo)
-            # for pr in prs:
-            #     collector.fetch_comments(repo, pr.number)
-            _ = collector  # temporarily suppress unused variable warning
-        client.close()
+        if repo_parallelism == 1:
+            for repo in repos_config.repos:
+                typer.echo(f"Processing repository: {repo}")
+                _, stats = _collect_single_repository(
+                    repo,
+                    token=token,
+                    session_factory=session_factory,
+                    filters=repos_config.filters,
+                    limits=repos_config.limits,
+                )
+                typer.echo(
+                    "  Saved "
+                    f"{stats.pull_requests} PRs, "
+                    f"{stats.review_comments} review comments, "
+                    f"{stats.reviews} reviews, "
+                    f"{stats.issue_comments} issue comments."
+                )
+        else:
+            with ThreadPoolExecutor(max_workers=repo_parallelism) as executor:
+                future_to_repo = {}
+                for repo in repos_config.repos:
+                    typer.echo(f"Processing repository: {repo}")
+                    future_to_repo[
+                        executor.submit(
+                            _collect_single_repository,
+                            repo,
+                            token=token,
+                            session_factory=session_factory,
+                            filters=repos_config.filters,
+                            limits=repos_config.limits,
+                        )
+                    ] = repo
+
+                for future in as_completed(future_to_repo):
+                    repo, stats = future.result()
+                    typer.echo(f"Completed repository: {repo}")
+                    typer.echo(
+                        "  Saved "
+                        f"{stats.pull_requests} PRs, "
+                        f"{stats.review_comments} review comments, "
+                        f"{stats.reviews} reviews, "
+                        f"{stats.issue_comments} issue comments."
+                    )
+
         typer.secho("Collection completed successfully.", fg=typer.colors.GREEN)
 
     except Exception as e:
